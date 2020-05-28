@@ -67,6 +67,7 @@ I think [Perf](https://github.com/Perf) might have some suggestions on how to im
 
 I've also used the class-transformer package so that my response objects have a different type value depending on the entityType. Could use the field tbh 
 
+## Nestjs 
 
 My methods work with basic hydration however the query builder needs some work. I've used a custom repository to handle all of the saving/updating/fetch. I only really use typeorm with nestjs hence I can use the repository anywhere in my project like so 
 ```ts
@@ -103,3 +104,7 @@ advertRepository.save({
 ```
 
 Will automatically save the owner relationship. However this does depend on the user being an instanced UserEntity and not an object. 
+
+## Possible use case
+
+It is possible to have multiple types for both parent + children however I've not tested this use case.
