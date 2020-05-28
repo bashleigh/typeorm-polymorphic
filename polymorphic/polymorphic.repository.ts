@@ -128,9 +128,12 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     entity: E,
     options: PolymorphicMetadataInterface,
   ): Promise<PolymorphicHydrationType> {
-    const entityTypes: (Function | string)[] = Array.isArray(options.classType)
-      ? options.classType
-      : [options.classType];
+    const entityTypes: (Function | string)[] =
+      options.type === 'parent'
+        ? [entity[entityTypeColumn(options)]]
+        : Array.isArray(options.classType)
+        ? options.classType
+        : [options.classType];
 
     // TODO if not hasMany, should I return if one is found?
     const results = await Promise.all(
@@ -164,12 +167,20 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
   ): Promise<PolymorphicChildInterface[] | PolymorphicChildInterface | never> {
     const repository = this.findRepository(entityType);
 
-    return repository[options.hasMany ? 'find' : 'findOne']({
-      where: {
-        [entityIdColumn(options)]: parent[PrimaryColumn(options)],
-        [entityTypeColumn(options)]: entityType,
-      },
-    });
+    return repository[options.hasMany ? 'find' : 'findOne'](
+      options.type === 'parent'
+        ? {
+            where: {
+              id: parent[entityIdColumn(options)],
+            },
+          }
+        : {
+            where: {
+              [entityIdColumn(options)]: parent[PrimaryColumn(options)],
+              [entityTypeColumn(options)]: entityType,
+            },
+          },
+    );
   }
 
   private async savePolymorhic(
@@ -379,7 +390,6 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
   public async find(
     optionsOrConditions?: FindConditions<E> | FindManyOptions<E>,
   ): Promise<E[]> {
-    console.log('called');
     const results = await super.find(optionsOrConditions);
 
     if (!this.isPolymorph()) {
@@ -450,7 +460,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
       return entity;
     }
 
-    return await this.hydratePolymorphs(entity, polymorphicMetadata);
+    return this.hydratePolymorphs(entity, polymorphicMetadata);
   }
 
   create(): E;
