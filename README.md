@@ -108,3 +108,10 @@ Will automatically save the owner relationship. However this does depend on the 
 ## Possible use case
 
 It is possible to have multiple types for both parent + children however I've not tested this use case.
+
+# Improvements 
+
+ - [ ] Dynamically add fields for entityType + entityId and make them configurable
+ - [ ] Build helpful query builder methods
+ - [ ] Add tests!
+ - [ ] Separate from nestjs 
