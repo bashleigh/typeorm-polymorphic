@@ -83,7 +83,7 @@ My methods work with basic hydration however the query builder needs some work. 
 export class AdvertModule {}
 ```
 
-Where `AdvertRepository` extends the `PolymorphicRepository`
+Where `AdvertRepository` extends the `AbstractPolymorphicRepository`
 
 ```ts
 @EntityRepository(AdvertEntity)
