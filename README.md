@@ -84,8 +84,34 @@ id | entityId | entityType
  3 | 2        | 'UserEntity'
 ```
 
+## Decorators
 
-## Methods 
+Both `PolymorphicChildren` and `PolymophicParent` are the same. Currently some of the default values are different but eventually these method should be synonyms of one another. Mainly because it helped me describe the relationship directions. 
+
+### Ambiguous direction
+
+Both `PolymorphicParent` and `PolymorphicChildren` accepts either an array of types or a singular type
+
+```ts
+@PolymorphicChildren(() => [ChildEntity, AnotherChildEntity])
+@PolymorphicParent(() => [ParentEntity, AnotherParentEntity])
+
+@PolymorphicChildren(() => ChildEntity)
+@PolymorphicParent(() => ParentEntity)
+```
+
+### Options
+
+key | what's it for? | default
+---
+eager | load relationships by default | true
+cascade | save/delete parent/children on save/delete | true
+deleteBeforeUpdate | delete relation/relations before update | false
+hasMany | should return as array? | true for child. false for parent
+
+> hasMany should really be updated so both parent and child declaration are the same. I've done to hopefully avoid confusion from the names!
+
+## Repository Methods 
 
 The majority of these methods overwrite the typeorm's `Repository` class methods to ensure polymorph relationships are handled before/after the parent's method.
 
@@ -241,6 +267,65 @@ export class AdvertEntity implements PolymorphicChildInterface {
 ```
 
 The owner property object's type property will now either be string value of `UserEntity` or `MerchantEntity`
+
+
+## Possible relations 
+
+### Singular parent, different children
+
+This is an example of having the need of different types of children for a singular parent type
+
+```ts
+class RestaurantEntity {
+  @PolymorphicChildren(() => [WatierEntity, ChefEntity])
+  staff: (WaiterEntity | ChefEntity)[];
+}
+
+class WaiterEntity implements PolymorphicChildInterface {
+  @Column()
+  entityId: string;
+
+  @Column()
+  entityType: string;
+
+  @PolymorphicParent(() => RestaurantEntity)
+  restaurant: RestaurantEntity;
+}
+
+class ChefEntity implements PolymorphicChildInterface {
+  @Column()
+  entityId: string;
+
+  @Column()
+  entityType: string;
+
+  @PolymorphicParent(() => RestaurantEntity)
+  restaurant: RestaurantEntity;
+}
+
+```
+
+### Singular child, different parent
+
+This is an example of having the need of a singular child shared between different types of parents
+
+```ts
+class AdvertEntity implements PolymorphicChildInterface {
+  @PolymorphicParent(() => [UserEntity, MerchantEntity])
+  owner: UserEntity | MerchantEntity;
+}
+
+class MerchantEntity {
+  @PolymorphicChildren(() => AdvertEntity)
+  adverts: AdvertEntity[];
+}
+
+class UserEntity {
+  @PolymorphicChildren(() => AdvertEntity)
+  adverts: AdvertEntity[];
+}
+
+```
 
 ## Notes
 

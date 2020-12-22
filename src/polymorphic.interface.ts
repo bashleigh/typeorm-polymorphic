@@ -1,5 +1,5 @@
 export interface PolymorphicChildInterface {
-  entityId: number;
+  entityId: number | string;
   entityType: string;
 }
 
