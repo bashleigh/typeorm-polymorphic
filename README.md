@@ -1,7 +1,7 @@
-# typeorm-polymorphic concept
+# typeorm-polymorphic
 <a href="https://www.npmjs.com/package/typeorm-polymorphic"><img src="https://img.shields.io/npm/v/typeorm-polymorphic.svg"/></a>
 
-A package for polymorphic relationships for typeorm
+An extension package for polymorphic relationship management, declaration and repository queries for (typeorm)[https://typeorm.io/]
 
 > Experiemental repository
 
