@@ -1,6 +1,6 @@
 {
   "name": "typeorm-polymorphic",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "./dist/index.js",
   "author": {
     "name": "Ashleigh Simonelli",
@@ -28,6 +28,7 @@
     "prepublish": "npm run format && npm run build"
   },
   "devDependencies": {
+    "@types/node": "^14.14.14",
     "prettier": "^2.2.1",
     "reflect-metadata": "^0.1.13",
     "typeorm": "^0.2.29",

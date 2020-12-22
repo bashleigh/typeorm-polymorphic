@@ -1,4 +1,4 @@
-import { POLYMORPHIC_OPTIONS } from './contstants';
+import { POLYMORPHIC_OPTIONS } from './constants';
 import {
   PolymorphicChildrenDecoratorOptionsInterface,
   PolymorphicParentDecoratorOptionsInterface,
