@@ -13,6 +13,18 @@ This is a concept I've put together for decorated polymorphic values with typeor
 
 This has worked for my use case however it might not for others. This is an example of how I've used it.
 
+### Extend the PolymorphicRepository
+
+```ts
+@EntityRepository(AdvertEntity)
+export class AdvertRepository extends AbstractPolymorphicRepository<
+  AdvertEntity
+> {}
+```
+### Setup the entities
+
+#### Parents
+
 ```ts
 @Entity('users')
 export class UserEntity {
@@ -38,6 +50,8 @@ export class MerchantEntity {
 }
 ```
 
+#### Children
+
 ```ts
 @Entity('adverts') 
 export class AdvertEntity implements PolymorphicChildInterface {
@@ -60,6 +74,8 @@ export class AdvertEntity implements PolymorphicChildInterface {
   entityType: string;
 }
 ```
+
+#### Resulting values
 
 This will result in the adverts table having values 
 
