@@ -1,4 +1,13 @@
 # typeorm-polymorphic concept
+<a href="https://www.npmjs.com/package/typeorm-polymorphic"><img src="https://img.shields.io/npm/v/typeorm-polymorphic.svg"/></a>
+
+A package for polymorphic relationships for typeorm
+
+## Install 
+
+```bash
+$ yarn add typeorm-polymorphic
+```
 
 This is a concept I've put together for decorated polymorphic values with typeorm. I've taken a lot of inspiration from laravel's eloquent.
 
