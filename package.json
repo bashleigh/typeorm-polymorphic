@@ -1,8 +1,12 @@
 {
   "name": "typeorm-polymorphic",
   "version": "0.0.1",
-  "main": "index.js",
-  "author": "Aaryanna Simonelli <ashleighsimonelli@gmail.com>",
+  "main": "./dist/index.js",
+  "author": {
+    "name": "Ashleigh Simonelli",
+    "email": "ashleighsimonelli@gmail.com",
+    "url": "http://ashleighsimonelli.co.uk"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
