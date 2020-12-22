@@ -1,0 +1,8 @@
+{
+  "name": "typeorm-polymorphic",
+  "version": "0.0.1",
+  "main": "index.js",
+  "repository": "git@github.com:bashleigh/typeorm-polymorphic.git",
+  "author": "Aaryanna Simonelli <ashleighsimonelli@gmail.com>",
+  "license": "MIT"
+}
