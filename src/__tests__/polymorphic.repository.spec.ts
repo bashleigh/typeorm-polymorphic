@@ -41,16 +41,16 @@ describe('AbstractPolymorphicRepository', () => {
     ]);
   });
 
-  describe("child", () => {
+  describe('child', () => {
     it('Can create with parent', async () => {
       const repository = connection.getCustomRepository(AdvertRepository);
-  
+
       const user = new UserEntity();
-  
+
       const result = repository.create({
         owner: user,
       });
-  
+
       expect(result).toBeInstanceOf(AdvertEntity);
       expect(result.owner).toBeInstanceOf(UserEntity);
     });
@@ -58,13 +58,15 @@ describe('AbstractPolymorphicRepository', () => {
     it('Can save cascade parent', async () => {
       const repository = connection.getCustomRepository(AdvertRepository);
       const userRepository = connection.getRepository(UserEntity);
-  
-      const user = await userRepository.save(new UserEntity);
-  
-      const result = await repository.save(repository.create({
-        owner: user,
-      }));
-  
+
+      const user = await userRepository.save(new UserEntity());
+
+      const result = await repository.save(
+        repository.create({
+          owner: user,
+        }),
+      );
+
       expect(result).toBeInstanceOf(AdvertEntity);
       expect(result.owner).toBeInstanceOf(UserEntity);
       expect(result.id).toBeTruthy();
