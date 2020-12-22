@@ -241,9 +241,6 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
 
     const metadata = this.getPolymorphicMetadata();
 
-    // TODO find if it has a parent metadata
-    // TODO set the columns
-
     metadata.map((options: PolymorphicOptionsType) => {
       if (this.isParent(options)) {
         (Array.isArray(entityOrEntities)
@@ -284,6 +281,39 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     //       }),
     //   ),
     // );
+  }
+
+  private async deletePolymorphs(
+    entity: E,
+    options: PolymorphicMetadataInterface[],
+  ): Promise<void | never> {
+    await Promise.all(
+      options.map(
+        (option: PolymorphicMetadataInterface) =>
+          new Promise(resolve => {
+            if (!option.deleteBeforeUpdate) {
+              return Promise.resolve();
+            }
+
+            const entityTypes = Array.isArray(option.classType)
+              ? option.classType
+              : [option.classType];
+
+            resolve(
+              Promise.all(
+                entityTypes.map((type: () => Function | Function[]) => {
+                  const repository = this.findRepository(type);
+
+                  repository.delete({
+                    [entityTypeColumn(option)]: type,
+                    [entityIdColumn(option)]: entity[PrimaryColumn(option)],
+                  });
+                }),
+              ),
+            );
+          }),
+      ),
+    );
   }
 
   find(options?: FindManyOptions<E>): Promise<E[]>;
@@ -388,9 +418,5 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     return entity;
   }
 
-  // TODO add save, update etc
-
   /// TODO implement remove and have an option to delete children/parent
-
-  // TODO implement method to prevent hydrating parent search to stop circular
 }
