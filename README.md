@@ -103,7 +103,7 @@ Both `PolymorphicParent` and `PolymorphicChildren` accepts either an array of ty
 ### Options
 
 key | what's it for? | default
----
+---|---|---
 eager | load relationships by default | true
 cascade | save/delete parent/children on save/delete | true
 deleteBeforeUpdate | delete relation/relations before update | false
