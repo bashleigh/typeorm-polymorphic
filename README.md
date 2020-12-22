@@ -1,5 +1,7 @@
 # typeorm-polymorphic
 <a href="https://www.npmjs.com/package/typeorm-polymorphic"><img src="https://img.shields.io/npm/v/typeorm-polymorphic.svg"/></a>
+<a href="https://travis-ci.org/nestjsx/typeorm-paginate"><img src="https://travis-ci.org/nestjsx/typeorm-paginate.svg?branch=master"/></a>
+  <img src="https://camo.githubusercontent.com/a34cfbf37ba6848362bf2bee0f3915c2e38b1cc1/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f5052732d77656c636f6d652d627269676874677265656e2e7376673f7374796c653d666c61742d737175617265" />
 
 An extension package for polymorphic relationship management, declaration and repository queries for [typeorm](https://typeorm.io/)
 
@@ -331,11 +333,10 @@ class UserEntity {
 
 I think [Perf](https://github.com/Perf) might have some suggestions on how to improve things (sorry I have replied been mega busy!)
 
-I've also used the class-transformer package so that my response objects have a different type value depending on the entityType. Could use the field tbh 
-
 ## Nestjs 
 
-My methods work with basic hydration however the query builder needs some work. I've used a custom repository to handle all of the saving/updating/fetch. I only really use typeorm with nestjs hence I can use the repository anywhere in my project like so 
+If you're using nestjs, don't forgot to include your repository into the entities array in forFeature
+
 ```ts
 @Module({
   imports: [
@@ -349,28 +350,3 @@ My methods work with basic hydration however the query builder needs some work. 
 })
 export class AdvertModule {}
 ```
-
-Where `AdvertRepository` extends the `AbstractPolymorphicRepository`
-
-```ts
-@EntityRepository(AdvertEntity)
-export class AdvertRepository extends AbstractPolymorphicRepository<
-  AdvertEntity
-> {
-...
-```
-
-Now whenever I call `advertRepository.findOne(1)` it'll also find the advert's parent (UserEntity | MerchantEntity).
-Same with saving
-
-```ts
-advertRepository.save({
-   owner: user,
-});
-```
-
-Will automatically save the owner relationship. However this does depend on the user being an instanced UserEntity and not an object. 
-
-## Possible use case
-
-It is possible to have multiple types for both parent + children however I've not tested this use case.
