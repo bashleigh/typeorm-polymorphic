@@ -3,6 +3,8 @@
 
 A package for polymorphic relationships for typeorm
 
+> Experiemental repository
+
 ## Install 
 
 ```bash
@@ -59,15 +61,6 @@ export class MerchantEntity {
 @Entity('adverts') 
 export class AdvertEntity implements PolymorphicChildInterface {
   @PolymorphicParent(() => [UserEntity, MerchantEntity])
-  @Transform(
-    (value: UserEntity | MerchantEntity) => ({
-      ...value,
-      type: value.constructor.name,
-    }),
-    {
-      toPlainOnly: true,
-    },
-  )
   owner: UserEntity | MerchantEntity;
 
   @Column()
@@ -90,6 +83,85 @@ id | entityId | entityType
  2 | 1        | 'MerchantEntity'
  3 | 2        | 'UserEntity'
 ```
+
+
+## Methods 
+
+The majority of these methods overwrite the typeorm's `Repository` class methods to ensure polymorph relationships are handled before/after the parent's method.
+
+### save
+
+#### Child
+
+```ts
+const repository = connection.getRepository(AdvertRepository); // That extends AbstractPolymorphicRepository
+
+const advert = new AdvertEntity();
+advert.owner = user;
+
+await repository.save(advert);
+```
+
+#### Parent
+
+```ts
+const repository = connection.getRepository(MerchantRepository); // That extends AbstractPolymorphicRepository
+
+const advert = new AdvertEntity();
+
+const parent = new MerchantEntity();
+merchant.adverts= [advert];
+
+await repository.save(merchant);
+```
+
+### find
+```ts
+const repository = connection.getRepository(MerchantRepository); // That extends AbstractPolymorphicRepository
+
+const results = await repository.find();
+
+// results[0].adverts === AdvertEntity[]
+```
+### findOne
+
+### hydrateMany
+
+### hydrateOne
+
+### create
+
+
+## Class-transformer
+
+We recommend if you're working with polymorphic relationships that you use `class-transformers` `Transform` decorator to distinguish the different types on the frontend when returning your entities from a http call
+
+```ts
+@Entity('adverts') 
+export class AdvertEntity implements PolymorphicChildInterface {
+  @PolymorphicParent(() => [UserEntity, MerchantEntity])
+  @Transform(
+    (value: UserEntity | MerchantEntity) => ({
+      ...value,
+      type: value.constructor.name,
+    }),
+    {
+      toPlainOnly: true,
+    },
+  )
+  owner: UserEntity | MerchantEntity;
+
+  @Column()
+  entityId: number;
+
+  @Column()
+  entityType: string;
+}
+```
+
+The owner property object's type property will now either be string value of `UserEntity` or `MerchantEntity`
+
+## Notes
 
 I think [Perf](https://github.com/Perf) might have some suggestions on how to improve things (sorry I have replied been mega busy!)
 
