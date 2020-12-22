@@ -91,6 +91,8 @@ The majority of these methods overwrite the typeorm's `Repository` class methods
 
 ### save
 
+extends typeorm's Repository.save method
+
 #### Child
 
 ```ts
@@ -116,6 +118,9 @@ await repository.save(merchant);
 ```
 
 ### find
+
+extends typeorm's Repository.find method
+
 ```ts
 const repository = connection.getRepository(MerchantRepository); // That extends AbstractPolymorphicRepository
 
@@ -125,16 +130,90 @@ const results = await repository.find();
 ```
 ### findOne
 
-### hydrateMany
+extends typeorm's Repository.findOne method
 
-### hydrateOne
 
 ### create
 
+This method creates the parent or child relations for you so you don't have to manally supply an array of classes.
+
+extends typeorm's Repository.create method
+
+#### Child
+
+```ts
+const repository = connection.getRepository(AdvertRepository); // That extends AbstractPolymorphicRepository
+
+const results = await repository.create({
+  owner: new UserEntity, // or MerchantEntity
+});
+```
+
+#### Parent
+
+```ts
+const repository = connection.getRepository(UserRepository); // That extends AbstractPolymorphicRepository
+
+const results = await repository.create({
+  adverts: [
+    {
+      name: 'test',
+    },
+    {
+      name: 'test',
+    },
+  ],
+});
+
+/**
+ * {
+ *   adverts: [
+ *     AdvertEntity{
+ *       name: 'test',
+ *     },
+ *     AdvertEntity{
+ *       name: 'test',
+ *     },
+ *   ],
+ * }
+*/
+```
+
+### hydrateMany
+
+Hydreate one entity and get their relations to parent/child
+
+```ts
+const repository = connection.getRepository(AdvertRepository); // That extends AbstractPolymorphicRepository
+
+const adverts = await repository.find();
+// eager to parent (user|merchant) is set to false
+adverts[0].owner; // undefined
+
+await repository.hydrateMany(adverts);
+
+adverts[0].owner; // UserEntity | MerchantEntity
+```
+
+### hydrateOne
+
+Hydreate one entity and get their relations to parent/child
+
+```ts
+const repository = connection.getRepository(AdvertRepository); // That extends AbstractPolymorphicRepository
+
+const advert = await repository.findOne(1);
+// eager to parent (user|merchant) is set to false
+advert.owner; // undefined
+
+await repository.hydrateOne(advert);
+
+advert.owner; // UserEntity | MerchantEntity
+```
 
 ## Class-transformer
 
-We recommend if you're working with polymorphic relationships that you use `class-transformers` `Transform` decorator to distinguish the different types on the frontend when returning your entities from a http call
+We recommend if you're working with polymorphic relationships that you use `class-transformers`'s `Transform` decorator to distinguish the different types on the frontend when returning your entities from a http call
 
 ```ts
 @Entity('adverts') 
