@@ -91,9 +91,11 @@ The majority of these methods overwrite the typeorm's `Repository` class methods
 
 ### save
 
+Saves the given entity and it's parent or children
+
 extends typeorm's Repository.save method
 
-#### Child
+##### Child
 
 ```ts
 const repository = connection.getRepository(AdvertRepository); // That extends AbstractPolymorphicRepository
@@ -104,7 +106,7 @@ advert.owner = user;
 await repository.save(advert);
 ```
 
-#### Parent
+##### Parent
 
 ```ts
 const repository = connection.getRepository(MerchantRepository); // That extends AbstractPolymorphicRepository
@@ -139,7 +141,7 @@ This method creates the parent or child relations for you so you don't have to m
 
 extends typeorm's Repository.create method
 
-#### Child
+##### Child
 
 ```ts
 const repository = connection.getRepository(AdvertRepository); // That extends AbstractPolymorphicRepository
@@ -149,7 +151,7 @@ const results = await repository.create({
 });
 ```
 
-#### Parent
+##### Parent
 
 ```ts
 const repository = connection.getRepository(UserRepository); // That extends AbstractPolymorphicRepository
