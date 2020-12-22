@@ -13,7 +13,6 @@ before_install:
   - npm i -g yarn
 install:
   - yarn
-  - yarn setup:test
 script:
   - yarn run test
 after_success: yarn run coveralls
