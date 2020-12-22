@@ -1,3 +1,4 @@
 src
 .idea
 .travis.yml
+docker-compose.yml
