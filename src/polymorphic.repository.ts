@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import {
   Repository,
   getMetadataArgsStorage,
@@ -8,7 +9,7 @@ import {
   FindOneOptions,
   ObjectID,
 } from 'typeorm';
-import { POLYMORPHIC_OPTIONS } from './contstants';
+import { POLYMORPHIC_OPTIONS } from './constants';
 import {
   PolymorphicChildType,
   PolymorphicParentType,
@@ -53,25 +54,23 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     }
 
     return keys
-      .map(
-        (key: string): PolymorphicMetadataInterface | undefined => {
-          const data: PolymorphicMetadataOptionsInterface & {
-            propertyKey: string;
-          } = Reflect.getMetadata(
-            key,
-            (this.metadata.target as Function)['prototype'],
-          );
+      .map((key: string): PolymorphicMetadataInterface | undefined => {
+        const data: PolymorphicMetadataOptionsInterface & {
+          propertyKey: string;
+        } = Reflect.getMetadata(
+          key,
+          (this.metadata.target as Function)['prototype'],
+        );
 
-          if (typeof data === 'object') {
-            const classType = data.classType();
-            return {
-              ...data,
-              classType,
-            };
-          }
-        },
-      )
-      .filter(val => typeof val !== 'undefined');
+        if (typeof data === 'object') {
+          const classType = data.classType();
+          return {
+            ...data,
+            classType,
+          };
+        }
+      })
+      .filter((val) => typeof val !== 'undefined');
   }
 
   protected isPolymorph(): boolean {
@@ -94,7 +93,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
   }
 
   public async hydrateMany(entities: E[]): Promise<E[]> {
-    return Promise.all(entities.map(ent => this.hydrateOne(ent)));
+    return Promise.all(entities.map((ent) => this.hydrateOne(ent)));
   }
 
   public async hydrateOne(entity: E): Promise<E> {
@@ -116,7 +115,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     return values.reduce<E>((e: E, vals: PolymorphicHydrationType) => {
       const values =
         vals.type === 'parent' && Array.isArray(vals.values)
-          ? vals.values.filter(v => typeof v !== 'undefined' && v !== null)
+          ? vals.values.filter((v) => typeof v !== 'undefined' && v !== null)
           : vals.values;
       e[vals.key] =
         vals.type === 'parent' && Array.isArray(values) ? values[0] : values; // TODO should be condition for !hasMany
@@ -198,7 +197,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
 
     if (Array.isArray(entities)) {
       return Promise.all(
-        entities.map(polymorph => {
+        entities.map((polymorph) => {
           polymorph[entityIdColumn(options)] = entity[entityIdColumn(options)];
           polymorph[entityTypeColumn(options)] = this.metadata.targetName;
 
@@ -219,7 +218,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     const results = await Promise.all(
       options.map(
         (options: PolymorphicMetadataInterface) =>
-          new Promise(async resolve =>
+          new Promise(async (resolve) =>
             options.cascade
               ? resolve({
                   key: options.propertyKey,
@@ -253,7 +252,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     await Promise.all(
       options.map(
         (option: PolymorphicMetadataInterface) =>
-          new Promise(resolve => {
+          new Promise((resolve) => {
             if (!option.deleteBeforeUpdate) {
               return Promise.resolve();
             }
@@ -325,7 +324,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
   public async save<T extends DeepPartial<E>>(
     entityOrEntities: T | Array<T>,
     options?: SaveOptions & { reload: false },
-  ): Promise<T & E | Array<T & E> | T | Array<T>> {
+  ): Promise<(T & E) | Array<T & E> | T | Array<T>> {
     if (!this.isPolymorph()) {
       return Array.isArray(entityOrEntities) && options
         ? await super.save(entityOrEntities, options)
@@ -399,7 +398,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     const metadata = this.getPolymorphicMetadata();
 
     return Promise.all(
-      results.map(entity => this.hydratePolymorphs(entity, metadata)),
+      results.map((entity) => this.hydratePolymorphs(entity, metadata)),
     );
   }
 
@@ -437,9 +436,9 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
             idOrOptionsOrConditions as number | string | ObjectID | Date,
             optionsOrConditions as FindConditions<E> | FindOneOptions<E>,
           )
-        : super.findOne(idOrOptionsOrConditions as
-            | FindConditions<E>
-            | FindOneOptions<E>);
+        : super.findOne(
+            idOrOptionsOrConditions as FindConditions<E> | FindOneOptions<E>,
+          );
     }
 
     const entity =
@@ -452,9 +451,9 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
             idOrOptionsOrConditions as number | string | ObjectID | Date,
             optionsOrConditions as FindConditions<E> | FindOneOptions<E>,
           )
-        : await super.findOne(idOrOptionsOrConditions as
-            | FindConditions<E>
-            | FindOneOptions<E>);
+        : await super.findOne(
+            idOrOptionsOrConditions as FindConditions<E> | FindOneOptions<E>,
+          );
 
     if (!entity) {
       return entity;

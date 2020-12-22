@@ -55,4 +55,3 @@ export type PolymorphicParentType = {
 export type PolymorphicOptionsType =
   | PolymorphicChildType
   | PolymorphicParentType;
- 

@@ -21,6 +21,9 @@ export class AdvertRepository extends AbstractPolymorphicRepository<
   AdvertEntity
 > {}
 ```
+
+> The below decorators will only work when using the above extended PolymorphicRepository
+
 ### Setup the entities
 
 #### Parents
