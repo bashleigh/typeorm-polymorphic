@@ -22,7 +22,7 @@
     "mysql"
   ],
   "scripts": {
-    "format": "prettier --write \"**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\"",
     "build": "rm -rf ./dist && tsc && npm run build:index",
     "build:index": "rm -rf ./index.js ./index.d.ts && tsc -d --skipLibCheck ./index.ts",
     "prepublish": "npm run format && npm run build",
