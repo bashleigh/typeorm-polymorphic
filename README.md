@@ -28,9 +28,11 @@ export class AdvertRepository extends AbstractPolymorphicRepository<
 > {}
 ```
 
-> The below decorators will only work when using the above extended PolymorphicRepository
+> The below decorators will only work when using the above abstract repository AbstractPolymorphicRepository
 
 ### Setup the entities
+
+This is an example of one child, 2 parent types
 
 #### Parents
 
@@ -80,6 +82,7 @@ export class AdvertEntity implements PolymorphicChildInterface {
 This will result in the adverts table having values 
 
 ```
+adverts table
 ==========================
 id | entityId | entityType
 ==========================
@@ -90,7 +93,7 @@ id | entityId | entityType
 
 ## Decorators
 
-Both `PolymorphicChildren` and `PolymophicParent` are the same. Currently some of the default values are different but eventually these method should be synonyms of one another. Mainly because it helped me describe the relationship directions. 
+Both `PolymorphicChildren` and `PolymophicParent` are treated same. Currently some of the default values are different but eventually these method should be synonyms of one another. They have different names because it helped me describe the relationship directions which could be explained as 'parent' 'child' in different ways.
 
 ### Ambiguous direction
 
