@@ -284,7 +284,7 @@ This is an example of having the need of different types of children for a singu
 
 ```ts
 class RestaurantEntity {
-  @PolymorphicChildren(() => [WatierEntity, ChefEntity])
+  @PolymorphicChildren(() => [WaiterEntity, ChefEntity])
   staff: (WaiterEntity | ChefEntity)[];
 }
 
