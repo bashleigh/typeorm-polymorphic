@@ -1,7 +1,6 @@
 import { POLYMORPHIC_OPTIONS } from './constants';
 import {
-  PolymorphicChildrenDecoratorOptionsInterface,
-  PolymorphicParentDecoratorOptionsInterface,
+  PolymorphicDecoratorOptionsInterface,
   PolymorphicMetadataOptionsInterface,
 } from './polymorphic.interface';
 
@@ -21,7 +20,7 @@ const polymorphicPropertyDecorator = (
 
 export const PolymorphicChildren = (
   classType: () => Function[] | Function,
-  options: PolymorphicChildrenDecoratorOptionsInterface = {},
+  options: PolymorphicDecoratorOptionsInterface = {},
 ): PropertyDecorator =>
   polymorphicPropertyDecorator({
     type: 'children',
@@ -35,7 +34,7 @@ export const PolymorphicChildren = (
 
 export const PolymorphicParent = (
   classType: () => Function[] | Function,
-  options: PolymorphicParentDecoratorOptionsInterface = {},
+  options: PolymorphicDecoratorOptionsInterface = {},
 ): PropertyDecorator =>
   polymorphicPropertyDecorator({
     type: 'parent',

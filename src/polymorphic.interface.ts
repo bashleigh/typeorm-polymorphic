@@ -24,17 +24,7 @@ export interface PolymorphicMetadataInterface extends PolymorphicInterface {
   propertyKey: string;
 }
 
-export interface PolymorphicChildrenDecoratorOptionsInterface {
-  primaryColumn?: string;
-  hasMany?: boolean;
-  cascade?: boolean;
-  eager?: boolean;
-  deleteBeforeUpdate?: boolean;
-  entityTypeColumn?: string;
-  entityTypeId?: string;
-}
-
-export interface PolymorphicParentDecoratorOptionsInterface {
+export interface PolymorphicDecoratorOptionsInterface {
   deleteBeforeUpdate?: boolean;
   primaryColumn?: string;
   hasMany?: boolean;
