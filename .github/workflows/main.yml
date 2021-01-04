@@ -45,7 +45,14 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: tests
-        run: yarn test --coverage
+        run: yarn test --coverag
+        e
+      - name: Coveralls Parallel
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
 
   coverage:
     needs: test
