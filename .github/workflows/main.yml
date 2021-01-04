@@ -33,6 +33,9 @@ jobs:
       # Runs a single command using the runners shell
       - name: build docker db
         run: docker-compose up -d
+      
+      - name: install
+        run: yarn
 
       # Runs a set of commands using the runners shell
       - name: tests
