@@ -40,8 +40,8 @@ jobs:
       - name: build
         run: yarn build
 
-      - name: check again
-        run: docker-compose exec db mysql -u root
+      - name: check docker
+        run: docker-compose up -d
 
       # Runs a set of commands using the runners shell
       - name: tests
