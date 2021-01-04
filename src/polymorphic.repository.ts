@@ -36,41 +36,37 @@ const PrimaryColumn = (options: PolymorphicMetadataInterface): string =>
 
 export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
   private getPolymorphicMetadata(): Array<PolymorphicMetadataInterface> {
-    let keys = Reflect.getMetadataKeys(
+    const keys = Reflect.getMetadataKeys(
       (this.metadata.target as Function)['prototype'],
     );
-
-    if (!Array.isArray(keys)) {
-      return [];
-    }
-
-    keys = keys.filter((key: string) => {
-      const parts = key.split('::');
-      return parts[0] === POLYMORPHIC_OPTIONS;
-    });
 
     if (!keys) {
       return [];
     }
 
-    return keys
-      .map((key: string): PolymorphicMetadataInterface | undefined => {
-        const data: PolymorphicMetadataOptionsInterface & {
-          propertyKey: string;
-        } = Reflect.getMetadata(
-          key,
-          (this.metadata.target as Function)['prototype'],
-        );
+    return keys.reduce<Array<PolymorphicMetadataInterface>>(
+      (keys: PolymorphicMetadataInterface[], key: string) => {
+        if (key.split('::')[0] === POLYMORPHIC_OPTIONS) {
+          const data: PolymorphicMetadataOptionsInterface & {
+            propertyKey: string;
+          } = Reflect.getMetadata(
+            key,
+            (this.metadata.target as Function)['prototype'],
+          );
 
-        if (typeof data === 'object') {
-          const classType = data.classType();
-          return {
-            ...data,
-            classType,
-          };
+          if (data && typeof data === 'object') {
+            const classType = data.classType();
+            keys.push({
+              ...data,
+              classType,
+            });
+          }
         }
-      })
-      .filter((val) => typeof val !== 'undefined');
+
+        return keys;
+      },
+      [],
+    );
   }
 
   protected isPolymorph(): boolean {
