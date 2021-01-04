@@ -46,3 +46,12 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: tests
         run: yarn test
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls coverage
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true
