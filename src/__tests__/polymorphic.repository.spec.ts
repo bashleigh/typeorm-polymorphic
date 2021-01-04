@@ -42,13 +42,6 @@ describe('AbstractPolymorphicRepository', () => {
   });
 
   describe('Childen', () => {
-    // describe('helper methods', () => {
-    //   it('Is child', async () => {
-    //     const repository: AdvertRepository = connection.getCustomRepository(AdvertRepository);
-
-    //     expect(repository.isChildren({})).toBeTruthy();
-    //   });
-    // });
 
     describe('create', () => {
       it('Can create with parent', async () => {
