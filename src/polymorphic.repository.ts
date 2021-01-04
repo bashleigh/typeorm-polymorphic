@@ -279,7 +279,6 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
       options.map(
         (option: PolymorphicMetadataInterface) =>
           new Promise((resolve) => {
-            console.log('delete', option.deleteBeforeUpdate);
             if (!option.deleteBeforeUpdate) {
               resolve(Promise.resolve());
             }

@@ -42,7 +42,6 @@ describe('AbstractPolymorphicRepository', () => {
   });
 
   describe('Childen', () => {
-
     describe('create', () => {
       it('Can create with parent', async () => {
         const repository = connection.getCustomRepository(AdvertRepository);
