@@ -45,8 +45,9 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: tests
-        run: yarn test
-  finish:
+        run: yarn test --coverage
+
+  coverage:
     needs: test
     runs-on: ubuntu-latest
     steps:
