@@ -226,13 +226,9 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     options?: SaveOptions & { reload: false },
   ): Promise<(T & E) | Array<T & E> | T | Array<T>> {
     if (!this.isPolymorph()) {
-      return Array.isArray(entityOrEntities) && options
-        ? await super.save(entityOrEntities, options)
-        : Array.isArray(entityOrEntities)
-        ? await super.save(entityOrEntities)
-        : options
-        ? await super.save(entityOrEntities, options)
-        : await super.save(entityOrEntities);
+      return Array.isArray(entityOrEntities)
+        ? super.save(entityOrEntities, options)
+        : super.save(entityOrEntities, options);
     }
 
     const metadata = this.getPolymorphicMetadata();
@@ -248,6 +244,10 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
           if (!parent || entity[entityIdColumn(options)] !== undefined) {
             return entity;
           }
+
+          /**
+           * Add parent's id and type to child's id and type field
+           */
           entity[entityIdColumn(options)] = parent[PrimaryColumn(options)];
           entity[entityTypeColumn(options)] = parent.constructor.name;
           return entity;
@@ -255,46 +255,40 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
       }
     });
 
-    const savedEntities =
-      Array.isArray(entityOrEntities) && options
-        ? await super.save(entityOrEntities, options)
-        : Array.isArray(entityOrEntities)
-        ? await super.save(entityOrEntities)
-        : options
-        ? await super.save(entityOrEntities, options)
-        : await super.save(entityOrEntities);
+    /**
+     * Check deleteBeforeUpdate
+     */
+    Array.isArray(entityOrEntities)
+      ? await Promise.all(
+          (entityOrEntities as Array<T>).map((entity) =>
+            this.deletePolymorphs(entity, metadata),
+          ),
+        )
+      : await this.deletePolymorphs(entityOrEntities as T, metadata);
 
-    return savedEntities;
-
-    // return Promise.all(
-    //   (Array.isArray(savedEntities) ? savedEntities : [savedEntities]).map(
-    //     entity =>
-    //       new Promise(async resolve => {
-    //         // @ts-ignore
-    //         await this.deletePolymorphs(entity as E, metadata);
-    //         // @ts-ignore
-    //         resolve(await this.savePolymorphs(entity as E, metadata));
-    //       }),
-    //   ),
-    // );
+    return Array.isArray(entityOrEntities)
+      ? super.save(entityOrEntities, options)
+      : super.save(entityOrEntities, options);
   }
 
   private async deletePolymorphs(
-    entity: E,
+    entity: DeepPartial<E>,
     options: PolymorphicMetadataInterface[],
   ): Promise<void | never> {
     await Promise.all(
       options.map(
         (option: PolymorphicMetadataInterface) =>
           new Promise((resolve) => {
+            console.log('delete', option.deleteBeforeUpdate);
             if (!option.deleteBeforeUpdate) {
-              return Promise.resolve();
+              resolve(Promise.resolve());
             }
 
             const entityTypes = Array.isArray(option.classType)
               ? option.classType
               : [option.classType];
 
+            // resolve to singular query?
             resolve(
               Promise.all(
                 entityTypes.map((type: () => Function | Function[]) => {

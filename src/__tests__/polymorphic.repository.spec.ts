@@ -4,7 +4,7 @@ import { UserEntity } from './entities/user.entity';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { AdvertRepository } from './repository/advert.repository';
-import { AbstractPolymorphicRepository } from '../../dist';
+import { AbstractPolymorphicRepository } from '../';
 
 describe('AbstractPolymorphicRepository', () => {
   let connection: Connection;
@@ -41,38 +41,42 @@ describe('AbstractPolymorphicRepository', () => {
     ]);
   });
 
-  describe('child', () => {
-    it('Can create with parent', async () => {
-      const repository = connection.getCustomRepository(AdvertRepository);
+  describe('Childen', () => {
+    describe('create', () => {
+      it('Can create with parent', async () => {
+        const repository = connection.getCustomRepository(AdvertRepository);
 
-      const user = new UserEntity();
+        const user = new UserEntity();
 
-      const result = repository.create({
-        owner: user,
+        const result = repository.create({
+          owner: user,
+        });
+
+        expect(result).toBeInstanceOf(AdvertEntity);
+        expect(result.owner).toBeInstanceOf(UserEntity);
       });
-
-      expect(result).toBeInstanceOf(AdvertEntity);
-      expect(result.owner).toBeInstanceOf(UserEntity);
     });
 
-    it('Can save cascade parent', async () => {
-      const repository = connection.getCustomRepository(AdvertRepository);
-      const userRepository = connection.getRepository(UserEntity);
+    describe('save', () => {
+      it('Can save cascade parent', async () => {
+        const repository = connection.getCustomRepository(AdvertRepository);
+        const userRepository = connection.getRepository(UserEntity);
 
-      const user = await userRepository.save(new UserEntity());
+        const user = await userRepository.save(new UserEntity());
 
-      const result = await repository.save(
-        repository.create({
-          owner: user,
-        }),
-      );
+        const result = await repository.save(
+          repository.create({
+            owner: user,
+          }),
+        );
 
-      expect(result).toBeInstanceOf(AdvertEntity);
-      expect(result.owner).toBeInstanceOf(UserEntity);
-      expect(result.id).toBeTruthy();
-      expect(result.owner.id).toBeTruthy();
-      expect(result.entityType).toBe(UserEntity.name);
-      expect(result.entityId).toBe(result.owner.id);
+        expect(result).toBeInstanceOf(AdvertEntity);
+        expect(result.owner).toBeInstanceOf(UserEntity);
+        expect(result.id).toBeTruthy();
+        expect(result.owner.id).toBeTruthy();
+        expect(result.entityType).toBe(UserEntity.name);
+        expect(result.entityId).toBe(result.owner.id);
+      });
     });
   });
 });
