@@ -1,4 +1,4 @@
-import { POLYMORPHIC_OPTIONS } from './constants';
+import { POLYMORPHIC_KEY_SEPARATOR, POLYMORPHIC_OPTIONS } from './constants';
 import {
   PolymorphicDecoratorOptionsInterface,
   PolymorphicMetadataOptionsInterface,
@@ -9,7 +9,7 @@ const polymorphicPropertyDecorator = (
 ): PropertyDecorator => (target: Object, propertyKey: string) => {
   Reflect.defineMetadata(POLYMORPHIC_OPTIONS, true, target);
   Reflect.defineMetadata(
-    `${POLYMORPHIC_OPTIONS}::${propertyKey}`,
+    `${POLYMORPHIC_OPTIONS}${POLYMORPHIC_KEY_SEPARATOR}${propertyKey}`,
     {
       propertyKey,
       ...options,

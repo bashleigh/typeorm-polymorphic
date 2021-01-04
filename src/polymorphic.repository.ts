@@ -9,7 +9,7 @@ import {
   FindOneOptions,
   ObjectID,
 } from 'typeorm';
-import { POLYMORPHIC_OPTIONS } from './constants';
+import { POLYMORPHIC_KEY_SEPARATOR, POLYMORPHIC_OPTIONS } from './constants';
 import {
   PolymorphicChildType,
   PolymorphicParentType,
@@ -46,7 +46,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
 
     return keys.reduce<Array<PolymorphicMetadataInterface>>(
       (keys: PolymorphicMetadataInterface[], key: string) => {
-        if (key.split('::')[0] === POLYMORPHIC_OPTIONS) {
+        if (key.split(POLYMORPHIC_KEY_SEPARATOR)[0] === POLYMORPHIC_OPTIONS) {
           const data: PolymorphicMetadataOptionsInterface & {
             propertyKey: string;
           } = Reflect.getMetadata(
