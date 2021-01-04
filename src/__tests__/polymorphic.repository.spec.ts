@@ -42,6 +42,14 @@ describe('AbstractPolymorphicRepository', () => {
   });
 
   describe('Childen', () => {
+    // describe('helper methods', () => {
+    //   it('Is child', async () => {
+    //     const repository: AdvertRepository = connection.getCustomRepository(AdvertRepository);
+
+    //     expect(repository.isChildren({})).toBeTruthy();
+    //   });
+    // });
+
     describe('create', () => {
       it('Can create with parent', async () => {
         const repository = connection.getCustomRepository(AdvertRepository);
@@ -76,6 +84,82 @@ describe('AbstractPolymorphicRepository', () => {
         expect(result.owner.id).toBeTruthy();
         expect(result.entityType).toBe(UserEntity.name);
         expect(result.entityId).toBe(result.owner.id);
+      });
+
+      it('Can save many with cascade parent', async () => {
+        const repository = connection.getCustomRepository(AdvertRepository);
+        const userRepository = connection.getRepository(UserEntity);
+
+        const user = await userRepository.save(new UserEntity());
+
+        const result = await repository.save([
+          repository.create({
+            owner: user,
+          }),
+          repository.create({
+            owner: user,
+          }),
+        ]);
+
+        result.forEach((res) => {
+          expect(res).toBeInstanceOf(AdvertEntity);
+          expect(res.owner).toBeInstanceOf(UserEntity);
+          expect(res.id).toBeTruthy();
+          expect(res.owner.id).toBeTruthy();
+          expect(res.entityType).toBe(UserEntity.name);
+          expect(res.entityId).toBe(res.owner.id);
+        });
+      });
+    });
+
+    describe('findOne', () => {
+      it('Can find entity with parent', async () => {
+        const repository = connection.getCustomRepository(AdvertRepository);
+        const userRepository = connection.getRepository(UserEntity);
+
+        const user = await userRepository.save(new UserEntity());
+
+        const advert = await repository.save(
+          repository.create({
+            owner: user,
+          }),
+        );
+
+        const result = await repository.findOne(advert.id);
+
+        expect(result).toBeInstanceOf(AdvertEntity);
+        expect(result.owner).toBeInstanceOf(UserEntity);
+        expect(result.owner.id).toBe(result.entityId);
+        expect(result.entityType).toBe(UserEntity.name);
+      });
+    });
+
+    describe('find', () => {
+      it('Can find entities with parent', async () => {
+        const repository = connection.getCustomRepository(AdvertRepository);
+        const userRepository = connection.getRepository(UserEntity);
+
+        const user = await userRepository.save(new UserEntity());
+
+        await repository.save([
+          repository.create({
+            owner: user,
+          }),
+          repository.create({
+            owner: user,
+          }),
+        ]);
+
+        const result = await repository.find();
+
+        result.forEach((res) => {
+          expect(res).toBeInstanceOf(AdvertEntity);
+          expect(res.owner).toBeInstanceOf(UserEntity);
+          expect(res.id).toBeTruthy();
+          expect(res.owner.id).toBeTruthy();
+          expect(res.entityType).toBe(UserEntity.name);
+          expect(res.entityId).toBe(res.owner.id);
+        });
       });
     });
   });
