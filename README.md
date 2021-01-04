@@ -2,6 +2,7 @@
 <a href="https://www.npmjs.com/package/typeorm-polymorphic"><img src="https://img.shields.io/npm/v/typeorm-polymorphic.svg"/></a>
 <img src="https://github.com/bashleigh/typeorm-polymorphic/workflows/Tests/badge.svg"/>
 <img src="https://camo.githubusercontent.com/a34cfbf37ba6848362bf2bee0f3915c2e38b1cc1/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f5052732d77656c636f6d652d627269676874677265656e2e7376673f7374796c653d666c61742d737175617265" />
+[![Coverage Status](https://coveralls.io/repos/github/bashleigh/typeorm-polymorphic/badge.svg?branch=master)](https://coveralls.io/github/bashleigh/typeorm-polymorphic?branch=master)
 
 An extension package for polymorphic relationship management, declaration and repository queries for [typeorm](https://typeorm.io/)
 
