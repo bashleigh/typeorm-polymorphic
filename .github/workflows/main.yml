@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v2
       
       - name: env sync
-        run: export .env.dist
+        run: export $(cat ./.env.dist | xargs)  
 
       # Runs a single command using the runners shell
       - name: build docker db
