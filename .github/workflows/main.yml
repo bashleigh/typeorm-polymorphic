@@ -36,6 +36,9 @@ jobs:
       
       - name: install
         run: yarn install --ignore-scripts
+      
+      - name: build
+        run: yarn build
 
       # Runs a set of commands using the runners shell
       - name: tests
