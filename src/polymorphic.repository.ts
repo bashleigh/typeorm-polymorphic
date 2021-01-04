@@ -9,7 +9,7 @@ import {
   FindOneOptions,
   ObjectID,
 } from 'typeorm';
-import { POLYMORPHIC_OPTIONS } from './constants';
+import { POLYMORPHIC_KEY_SEPARATOR, POLYMORPHIC_OPTIONS } from './constants';
 import {
   PolymorphicChildType,
   PolymorphicParentType,
@@ -36,41 +36,37 @@ const PrimaryColumn = (options: PolymorphicMetadataInterface): string =>
 
 export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
   private getPolymorphicMetadata(): Array<PolymorphicMetadataInterface> {
-    let keys = Reflect.getMetadataKeys(
+    const keys = Reflect.getMetadataKeys(
       (this.metadata.target as Function)['prototype'],
     );
-
-    if (!Array.isArray(keys)) {
-      return [];
-    }
-
-    keys = keys.filter((key: string) => {
-      const parts = key.split('::');
-      return parts[0] === POLYMORPHIC_OPTIONS;
-    });
 
     if (!keys) {
       return [];
     }
 
-    return keys
-      .map((key: string): PolymorphicMetadataInterface | undefined => {
-        const data: PolymorphicMetadataOptionsInterface & {
-          propertyKey: string;
-        } = Reflect.getMetadata(
-          key,
-          (this.metadata.target as Function)['prototype'],
-        );
+    return keys.reduce<Array<PolymorphicMetadataInterface>>(
+      (keys: PolymorphicMetadataInterface[], key: string) => {
+        if (key.split(POLYMORPHIC_KEY_SEPARATOR)[0] === POLYMORPHIC_OPTIONS) {
+          const data: PolymorphicMetadataOptionsInterface & {
+            propertyKey: string;
+          } = Reflect.getMetadata(
+            key,
+            (this.metadata.target as Function)['prototype'],
+          );
 
-        if (typeof data === 'object') {
-          const classType = data.classType();
-          return {
-            ...data,
-            classType,
-          };
+          if (data && typeof data === 'object') {
+            const classType = data.classType();
+            keys.push({
+              ...data,
+              classType,
+            });
+          }
         }
-      })
-      .filter((val) => typeof val !== 'undefined');
+
+        return keys;
+      },
+      [],
+    );
   }
 
   protected isPolymorph(): boolean {
@@ -230,13 +226,9 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     options?: SaveOptions & { reload: false },
   ): Promise<(T & E) | Array<T & E> | T | Array<T>> {
     if (!this.isPolymorph()) {
-      return Array.isArray(entityOrEntities) && options
-        ? await super.save(entityOrEntities, options)
-        : Array.isArray(entityOrEntities)
-        ? await super.save(entityOrEntities)
-        : options
-        ? await super.save(entityOrEntities, options)
-        : await super.save(entityOrEntities);
+      return Array.isArray(entityOrEntities)
+        ? super.save(entityOrEntities, options)
+        : super.save(entityOrEntities, options);
     }
 
     const metadata = this.getPolymorphicMetadata();
@@ -252,6 +244,10 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
           if (!parent || entity[entityIdColumn(options)] !== undefined) {
             return entity;
           }
+
+          /**
+           * Add parent's id and type to child's id and type field
+           */
           entity[entityIdColumn(options)] = parent[PrimaryColumn(options)];
           entity[entityTypeColumn(options)] = parent.constructor.name;
           return entity;
@@ -259,32 +255,24 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
       }
     });
 
-    const savedEntities =
-      Array.isArray(entityOrEntities) && options
-        ? await super.save(entityOrEntities, options)
-        : Array.isArray(entityOrEntities)
-        ? await super.save(entityOrEntities)
-        : options
-        ? await super.save(entityOrEntities, options)
-        : await super.save(entityOrEntities);
+    /**
+     * Check deleteBeforeUpdate
+     */
+    Array.isArray(entityOrEntities)
+      ? await Promise.all(
+          (entityOrEntities as Array<T>).map((entity) =>
+            this.deletePolymorphs(entity, metadata),
+          ),
+        )
+      : await this.deletePolymorphs(entityOrEntities as T, metadata);
 
-    return savedEntities;
-
-    // return Promise.all(
-    //   (Array.isArray(savedEntities) ? savedEntities : [savedEntities]).map(
-    //     entity =>
-    //       new Promise(async resolve => {
-    //         // @ts-ignore
-    //         await this.deletePolymorphs(entity as E, metadata);
-    //         // @ts-ignore
-    //         resolve(await this.savePolymorphs(entity as E, metadata));
-    //       }),
-    //   ),
-    // );
+    return Array.isArray(entityOrEntities)
+      ? super.save(entityOrEntities, options)
+      : super.save(entityOrEntities, options);
   }
 
   private async deletePolymorphs(
-    entity: E,
+    entity: DeepPartial<E>,
     options: PolymorphicMetadataInterface[],
   ): Promise<void | never> {
     await Promise.all(
@@ -292,13 +280,14 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
         (option: PolymorphicMetadataInterface) =>
           new Promise((resolve) => {
             if (!option.deleteBeforeUpdate) {
-              return Promise.resolve();
+              resolve(Promise.resolve());
             }
 
             const entityTypes = Array.isArray(option.classType)
               ? option.classType
               : [option.classType];
 
+            // resolve to singular query?
             resolve(
               Promise.all(
                 entityTypes.map((type: () => Function | Function[]) => {

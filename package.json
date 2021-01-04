@@ -12,7 +12,7 @@
     "type": "git",
     "url": "https://github.com/bashleigh/typeorm-polymorphic"
   },
-  "description": "A simple pagination function to build a pagination object with types",
+  "description": "A repository for building typed polymorphic relationships",
   "keywords": [
     "nestjs",
     "typeorm",
