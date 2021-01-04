@@ -33,15 +33,18 @@ jobs:
       # Runs a single command using the runners shell
       - name: build docker db
         run: docker-compose up -d
-        
-      - name: check docker
-        run: docker-compose ps
       
       - name: install
         run: yarn install --ignore-scripts
       
       - name: build
         run: yarn build
+
+      - name: check docker
+        run: docker-compose ps
+
+      - name: check again
+       run: docker-compose exec db mysql -u root
 
       # Runs a set of commands using the runners shell
       - name: tests
