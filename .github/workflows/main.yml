@@ -41,7 +41,7 @@ jobs:
         run: yarn build
 
       - name: check docker
-        run: docker-compose ps
+        run: docker-compose up -d
 
       - name: check again
         run: docker-compose exec db mysql -u root
