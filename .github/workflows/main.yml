@@ -35,7 +35,7 @@ jobs:
         run: docker-compose up -d
       
       - name: install
-        run: npm i
+        run: yarn install --ignore-scripts
 
       # Runs a set of commands using the runners shell
       - name: tests
