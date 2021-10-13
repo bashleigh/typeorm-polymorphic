@@ -172,7 +172,7 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
         : {
             where: {
               [entityIdColumn(options)]: parent[PrimaryColumn(options)],
-              [entityTypeColumn(options)]: entityType,
+              [entityTypeColumn(options)]: parent.constructor.name,
             },
           },
     );
