@@ -147,8 +147,8 @@ const repository = connection.getRepository(MerchantRepository); // That extends
 
 const advert = new AdvertEntity();
 
-const parent = new MerchantEntity();
-merchant.adverts= [advert];
+const merchant = new MerchantEntity();
+merchant.adverts = [advert];
 
 await repository.save(merchant);
 ```
@@ -181,7 +181,7 @@ extends typeorm's Repository.create method
 const repository = connection.getRepository(AdvertRepository); // That extends AbstractPolymorphicRepository
 
 const results = await repository.create({
-  owner: new UserEntity, // or MerchantEntity
+  owner: new UserEntity(), // or MerchantEntity()
 });
 ```
 
