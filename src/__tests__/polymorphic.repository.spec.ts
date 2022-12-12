@@ -1,36 +1,37 @@
-import { Connection, createConnection, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AdvertEntity } from './entities/advert.entity';
 import { UserEntity } from './entities/user.entity';
 import { config } from 'dotenv';
 import { resolve } from 'path';
-import { AdvertRepository } from './repository/advert.repository';
-import { AbstractPolymorphicRepository } from '../';
+import { createPolymorphicRepository } from '../polymorphic.repository';
+import { MerchantEntity } from './entities/merchant.entity';
 
 describe('AbstractPolymorphicRepository', () => {
-  let connection: Connection;
+  let connection: DataSource;
 
   let userRepository: Repository<UserEntity>;
-  let repository: AbstractPolymorphicRepository<AdvertEntity>;
+  let repository: Repository<AdvertEntity>;
 
   beforeAll(async () => {
     config({
       path: resolve(__dirname, '.', '..', '..', '.env'),
     });
 
-    connection = await createConnection({
+    connection = new DataSource({
       type: 'mysql',
       host: process.env.TYPEORM_HOST,
       port: parseInt(process.env.TYPEORM_PORT as string, 10),
       username: process.env.TYPEORM_USERNAME,
       password: process.env.TYPEORM_PASSWORD,
-      entities: ['./*/**/*.entity.ts'],
+      entities: [UserEntity, AdvertEntity, MerchantEntity],
       synchronize: process.env.TYPEORM_SYNCHRONIZE === 'true',
       database: process.env.TYPEORM_DATABASE,
     });
+    await connection.initialize();
   });
 
   afterAll(async () => {
-    await connection.close();
+    await connection.destroy();
 
     await userRepository.createQueryBuilder().delete().execute();
     await repository.createQueryBuilder().delete().execute();
@@ -44,7 +45,10 @@ describe('AbstractPolymorphicRepository', () => {
   describe('Childen', () => {
     describe('create', () => {
       it('Can create with parent', async () => {
-        const repository = connection.getCustomRepository(AdvertRepository);
+        const baseRepository = connection.getRepository(AdvertEntity);
+        const repository = baseRepository.extend(
+          createPolymorphicRepository<AdvertEntity>(baseRepository),
+        );
 
         const user = new UserEntity();
 
@@ -59,7 +63,10 @@ describe('AbstractPolymorphicRepository', () => {
 
     describe('save', () => {
       it('Can save cascade parent', async () => {
-        const repository = connection.getCustomRepository(AdvertRepository);
+        const baseRepository = connection.getRepository(AdvertEntity);
+        const repository = baseRepository.extend(
+          createPolymorphicRepository<AdvertEntity>(baseRepository),
+        );
         const userRepository = connection.getRepository(UserEntity);
 
         const user = await userRepository.save(new UserEntity());
@@ -79,7 +86,10 @@ describe('AbstractPolymorphicRepository', () => {
       });
 
       it('Can save many with cascade parent', async () => {
-        const repository = connection.getCustomRepository(AdvertRepository);
+        const baseRepository = connection.getRepository(AdvertEntity);
+        const repository = baseRepository.extend(
+          createPolymorphicRepository<AdvertEntity>(baseRepository),
+        );
         const userRepository = connection.getRepository(UserEntity);
 
         const user = await userRepository.save(new UserEntity());
@@ -103,10 +113,13 @@ describe('AbstractPolymorphicRepository', () => {
         });
       });
     });
-
+    //
     describe('findOne', () => {
       it('Can find entity with parent', async () => {
-        const repository = connection.getCustomRepository(AdvertRepository);
+        const baseRepository = connection.getRepository(AdvertEntity);
+        const repository = baseRepository.extend(
+          createPolymorphicRepository<AdvertEntity>(baseRepository),
+        );
         const userRepository = connection.getRepository(UserEntity);
 
         const user = await userRepository.save(new UserEntity());
@@ -117,7 +130,11 @@ describe('AbstractPolymorphicRepository', () => {
           }),
         );
 
-        const result = await repository.findOne(advert.id);
+        const result = await repository.findOne({
+          where: {
+            id: advert.id,
+          },
+        });
 
         expect(result).toBeInstanceOf(AdvertEntity);
         expect(result?.owner).toBeInstanceOf(UserEntity);
@@ -125,10 +142,13 @@ describe('AbstractPolymorphicRepository', () => {
         expect(result?.entityType).toBe(UserEntity.name);
       });
     });
-
+    //
     describe('find', () => {
       it('Can find entities with parent', async () => {
-        const repository = connection.getCustomRepository(AdvertRepository);
+        const baseRepository = connection.getRepository(AdvertEntity);
+        const repository = baseRepository.extend(
+          createPolymorphicRepository<AdvertEntity>(baseRepository),
+        );
         const userRepository = connection.getRepository(UserEntity);
 
         const user = await userRepository.save(new UserEntity());
