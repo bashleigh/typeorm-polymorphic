@@ -167,7 +167,7 @@ export const createPolymorphicRepository = <Entity>(
         options.type === 'parent'
           ? {
               where: {
-                // TODO: Not sure but this change (key was just id before)
+                // TODO: Not sure about this change (key was just id before)
                 [PrimaryColumn(options)]: parent[entityIdColumn(options)],
               },
             }
