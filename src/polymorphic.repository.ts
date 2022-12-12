@@ -18,7 +18,6 @@ import {
 } from './polymorphic.interface';
 import { EntityRepositoryMetadataArgs } from 'typeorm/metadata-args/EntityRepositoryMetadataArgs';
 import { RepositoryNotFoundException } from './repository.token.exception';
-import * as console from 'console';
 
 type PolymorphicHydrationType = {
   key: string;
