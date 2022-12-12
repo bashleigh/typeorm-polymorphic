@@ -4,19 +4,19 @@ import {
   PolymorphicMetadataOptionsInterface,
 } from './polymorphic.interface';
 
-const polymorphicPropertyDecorator = (
-  options: PolymorphicMetadataOptionsInterface,
-): PropertyDecorator => (target: Object, propertyKey: string) => {
-  Reflect.defineMetadata(POLYMORPHIC_OPTIONS, true, target);
-  Reflect.defineMetadata(
-    `${POLYMORPHIC_OPTIONS}${POLYMORPHIC_KEY_SEPARATOR}${propertyKey}`,
-    {
-      propertyKey,
-      ...options,
-    },
-    target,
-  );
-};
+const polymorphicPropertyDecorator =
+  (options: PolymorphicMetadataOptionsInterface): PropertyDecorator =>
+  (target: Object, propertyKey: string) => {
+    Reflect.defineMetadata(POLYMORPHIC_OPTIONS, true, target);
+    Reflect.defineMetadata(
+      `${POLYMORPHIC_OPTIONS}${POLYMORPHIC_KEY_SEPARATOR}${propertyKey}`,
+      {
+        propertyKey,
+        ...options,
+      },
+      target,
+    );
+  };
 
 export const PolymorphicChildren = (
   classType: () => Function[] | Function,
