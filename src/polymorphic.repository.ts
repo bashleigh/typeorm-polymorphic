@@ -4,10 +4,8 @@ import {
   getMetadataArgsStorage,
   DeepPartial,
   SaveOptions,
-  FindConditions,
   FindManyOptions,
   FindOneOptions,
-  ObjectID,
 } from 'typeorm';
 import { POLYMORPHIC_KEY_SEPARATOR, POLYMORPHIC_OPTIONS } from './constants';
 import {
@@ -20,6 +18,7 @@ import {
 } from './polymorphic.interface';
 import { EntityRepositoryMetadataArgs } from 'typeorm/metadata-args/EntityRepositoryMetadataArgs';
 import { RepositoryNotFoundException } from './repository.token.exception';
+import * as console from 'console';
 
 type PolymorphicHydrationType = {
   key: string;
@@ -34,378 +33,306 @@ const entityIdColumn = (options: PolymorphicMetadataInterface): string =>
 const PrimaryColumn = (options: PolymorphicMetadataInterface): string =>
   options.primaryColumn || 'id';
 
-export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
-  private getPolymorphicMetadata(): Array<PolymorphicMetadataInterface> {
-    const keys = Reflect.getMetadataKeys(
-      (this.metadata.target as Function)['prototype'],
-    );
+export const createPolymorphicRepository = <Entity>(
+  baseRepository: Repository<Entity>,
+) => {
+  return {
+    getPolymorphicMetadata(): Array<PolymorphicMetadataInterface> {
+      const keys = Reflect.getMetadataKeys(
+        baseRepository.metadata.target['prototype'],
+      );
 
-    if (!keys) {
-      return [];
-    }
-
-    return keys.reduce<Array<PolymorphicMetadataInterface>>(
-      (keys: PolymorphicMetadataInterface[], key: string) => {
-        if (key.split(POLYMORPHIC_KEY_SEPARATOR)[0] === POLYMORPHIC_OPTIONS) {
-          const data: PolymorphicMetadataOptionsInterface & {
-            propertyKey: string;
-          } = Reflect.getMetadata(
-            key,
-            (this.metadata.target as Function)['prototype'],
-          );
-
-          if (data && typeof data === 'object') {
-            const classType = data.classType();
-            keys.push({
-              ...data,
-              classType,
-            });
-          }
-        }
-
-        return keys;
-      },
-      [],
-    );
-  }
-
-  protected isPolymorph(): boolean {
-    return Reflect.hasOwnMetadata(
-      POLYMORPHIC_OPTIONS,
-      (this.metadata.target as Function)['prototype'],
-    );
-  }
-
-  protected isChildren(
-    options: PolymorphicChildType | PolymorphicParentType,
-  ): options is PolymorphicChildType {
-    return options.type === 'children';
-  }
-
-  protected isParent(
-    options: PolymorphicChildType | PolymorphicParentType,
-  ): options is PolymorphicParentType {
-    return options.type === 'parent';
-  }
-
-  public async hydrateMany(entities: E[]): Promise<E[]> {
-    return Promise.all(entities.map((ent) => this.hydrateOne(ent)));
-  }
-
-  public async hydrateOne(entity: E): Promise<E> {
-    const metadata = this.getPolymorphicMetadata();
-
-    return this.hydratePolymorphs(entity, metadata);
-  }
-
-  private async hydratePolymorphs(
-    entity: E,
-    options: PolymorphicMetadataInterface[],
-  ): Promise<E> {
-    const values = await Promise.all(
-      options.map((option: PolymorphicMetadataInterface) =>
-        this.hydrateEntities(entity, option),
-      ),
-    );
-
-    return values.reduce<E>((e: E, vals: PolymorphicHydrationType) => {
-      const values =
-        vals.type === 'parent' && Array.isArray(vals.values)
-          ? vals.values.filter((v) => typeof v !== 'undefined' && v !== null)
-          : vals.values;
-      e[vals.key] =
-        vals.type === 'parent' && Array.isArray(values) ? values[0] : values; // TODO should be condition for !hasMany
-      return e;
-    }, entity);
-  }
-
-  private async hydrateEntities(
-    entity: E,
-    options: PolymorphicMetadataInterface,
-  ): Promise<PolymorphicHydrationType> {
-    const entityTypes: (Function | string)[] =
-      options.type === 'parent'
-        ? [entity[entityTypeColumn(options)]]
-        : Array.isArray(options.classType)
-        ? options.classType
-        : [options.classType];
-
-    // TODO if not hasMany, should I return if one is found?
-    const results = await Promise.all(
-      entityTypes.map((type: Function) =>
-        this.findPolymorphs(entity, type, options),
-      ),
-    );
-
-    return {
-      key: options.propertyKey,
-      type: options.type,
-      values: (options.hasMany &&
-      Array.isArray(results) &&
-      results.length > 0 &&
-      Array.isArray(results[0])
-        ? results.reduce<PolymorphicChildInterface[]>(
-            (
-              resultEntities: PolymorphicChildInterface[],
-              entities: PolymorphicChildInterface[],
-            ) => entities.concat(...resultEntities),
-            results as PolymorphicChildInterface[],
-          )
-        : results) as PolymorphicChildInterface | PolymorphicChildInterface[],
-    };
-  }
-
-  private async findPolymorphs(
-    parent: E,
-    entityType: Function,
-    options: PolymorphicMetadataInterface,
-  ): Promise<PolymorphicChildInterface[] | PolymorphicChildInterface | never> {
-    const repository = this.findRepository(entityType);
-
-    return repository[options.hasMany ? 'find' : 'findOne'](
-      options.type === 'parent'
-        ? {
-            where: {
-              id: parent[entityIdColumn(options)],
-            },
-          }
-        : {
-            where: {
-              [entityIdColumn(options)]: parent[PrimaryColumn(options)],
-              [entityTypeColumn(options)]: entityType,
-            },
-          },
-    );
-  }
-
-  private findRepository(
-    entityType: Function,
-  ): Repository<PolymorphicChildInterface | never> {
-    const repositoryToken = this.resolveRepositoryToken(entityType);
-
-    const repository: Repository<PolymorphicChildInterface> =
-      repositoryToken !== entityType
-        ? this.manager.getCustomRepository(repositoryToken)
-        : this.manager.getRepository(repositoryToken);
-
-    if (!repository) {
-      throw new RepositoryNotFoundException(repositoryToken);
-    }
-
-    return repository;
-  }
-
-  private resolveRepositoryToken(token: Function): Function | never {
-    const tokens = getMetadataArgsStorage().entityRepositories.filter(
-      (value: EntityRepositoryMetadataArgs) => value.entity === token,
-    );
-    return tokens[0] ? tokens[0].target : token;
-  }
-
-  save<T extends DeepPartial<E>>(
-    entities: T[],
-    options: SaveOptions & {
-      reload: false;
-    },
-  ): Promise<T[]>;
-
-  save<T extends DeepPartial<E>>(
-    entities: T[],
-    options?: SaveOptions,
-  ): Promise<(T & E)[]>;
-
-  save<T extends DeepPartial<E>>(
-    entity: T,
-    options?: SaveOptions & {
-      reload: false;
-    },
-  ): Promise<T>;
-
-  public async save<T extends DeepPartial<E>>(
-    entityOrEntities: T | Array<T>,
-    options?: SaveOptions & { reload: false },
-  ): Promise<(T & E) | Array<T & E> | T | Array<T>> {
-    if (!this.isPolymorph()) {
-      return Array.isArray(entityOrEntities)
-        ? super.save(entityOrEntities, options)
-        : super.save(entityOrEntities, options);
-    }
-
-    const metadata = this.getPolymorphicMetadata();
-
-    metadata.map((options: PolymorphicOptionsType) => {
-      if (this.isParent(options)) {
-        (Array.isArray(entityOrEntities)
-          ? entityOrEntities
-          : [entityOrEntities]
-        ).map((entity: E | DeepPartial<E>) => {
-          const parent = entity[options.propertyKey];
-
-          if (!parent || entity[entityIdColumn(options)] !== undefined) {
-            return entity;
-          }
-
-          /**
-           * Add parent's id and type to child's id and type field
-           */
-          entity[entityIdColumn(options)] = parent[PrimaryColumn(options)];
-          entity[entityTypeColumn(options)] = parent.constructor.name;
-          return entity;
-        });
+      if (!keys) {
+        return [];
       }
-    });
 
-    /**
-     * Check deleteBeforeUpdate
-     */
-    Array.isArray(entityOrEntities)
-      ? await Promise.all(
-          (entityOrEntities as Array<T>).map((entity) =>
-            this.deletePolymorphs(entity, metadata),
-          ),
-        )
-      : await this.deletePolymorphs(entityOrEntities as T, metadata);
+      return keys.reduce<Array<PolymorphicMetadataInterface>>(
+        (keys: PolymorphicMetadataInterface[], key: string) => {
+          if (key.split(POLYMORPHIC_KEY_SEPARATOR)[0] === POLYMORPHIC_OPTIONS) {
+            const data: PolymorphicMetadataOptionsInterface & {
+              propertyKey: string;
+            } = Reflect.getMetadata(
+              key,
+              (baseRepository.metadata.target as Function)['prototype'],
+            );
 
-    return Array.isArray(entityOrEntities)
-      ? super.save(entityOrEntities, options)
-      : super.save(entityOrEntities, options);
-  }
+            if (data && typeof data === 'object') {
+              const classType = data.classType();
+              keys.push({
+                ...data,
+                classType,
+              });
+            }
+          }
 
-  private async deletePolymorphs(
-    entity: DeepPartial<E>,
-    options: PolymorphicMetadataInterface[],
-  ): Promise<void | never> {
-    await Promise.all(
-      options.map(
-        (option: PolymorphicMetadataInterface) =>
-          new Promise((resolve) => {
-            if (!option.deleteBeforeUpdate) {
-              resolve(Promise.resolve());
+          return keys;
+        },
+        [],
+      );
+    },
+    isPolymorph(): boolean {
+      return Reflect.hasOwnMetadata(
+        POLYMORPHIC_OPTIONS,
+        baseRepository.metadata.target['prototype'],
+      );
+    },
+    isChildren(
+      options: PolymorphicChildType | PolymorphicParentType,
+    ): options is PolymorphicChildType {
+      return options.type === 'children';
+    },
+    isParent(
+      options: PolymorphicChildType | PolymorphicParentType,
+    ): options is PolymorphicParentType {
+      return options.type === 'parent';
+    },
+    async hydrateMany(entities: Entity[]): Promise<Entity[]> {
+      return Promise.all(entities.map((ent) => this.hydrateOne(ent)));
+    },
+    async hydrateOne(entity: Entity): Promise<Entity> {
+      const metadata = this.getPolymorphicMetadata();
+      return this.hydratePolymorphs(entity, metadata);
+    },
+    async hydratePolymorphs(
+      entity: Entity,
+      options: PolymorphicMetadataInterface[],
+    ): Promise<Entity> {
+      const values = await Promise.all(
+        options.map((option: PolymorphicMetadataInterface) =>
+          this.hydrateEntities(entity, option),
+        ),
+      );
+
+      return values.reduce<Entity>(
+        (e: Entity, vals: PolymorphicHydrationType) => {
+          const values =
+            vals.type === 'parent' && Array.isArray(vals.values)
+              ? vals.values.filter(
+                  (v) => typeof v !== 'undefined' && v !== null,
+                )
+              : vals.values;
+          e[vals.key] =
+            vals.type === 'parent' && Array.isArray(values)
+              ? values[0]
+              : values; // TODO should be condition for !hasMany
+          return e;
+        },
+        entity,
+      );
+    },
+    async hydrateEntities(
+      entity: Entity,
+      options: PolymorphicMetadataInterface,
+    ): Promise<PolymorphicHydrationType> {
+      const entityTypes: (Function | string)[] =
+        options.type === 'parent'
+          ? [entity[entityTypeColumn(options)]]
+          : Array.isArray(options.classType)
+          ? options.classType
+          : [options.classType];
+
+      // TODO if not hasMany, should I return if one is found?
+      const results = await Promise.all(
+        entityTypes.map((type: Function) =>
+          this.findPolymorphs(entity, type, options),
+        ),
+      );
+
+      return {
+        key: options.propertyKey,
+        type: options.type,
+        values: (options.hasMany &&
+        Array.isArray(results) &&
+        results.length > 0 &&
+        Array.isArray(results[0])
+          ? results.reduce<PolymorphicChildInterface[]>(
+              (
+                resultEntities: PolymorphicChildInterface[],
+                entities: PolymorphicChildInterface[],
+              ) => entities.concat(...resultEntities),
+              results as PolymorphicChildInterface[],
+            )
+          : results) as PolymorphicChildInterface | PolymorphicChildInterface[],
+      };
+    },
+    async findPolymorphs(
+      parent: Entity,
+      entityType: Function,
+      options: PolymorphicMetadataInterface,
+    ): Promise<
+      PolymorphicChildInterface[] | PolymorphicChildInterface | never
+    > {
+      const repository = this.findRepository(entityType);
+
+      return repository[options.hasMany ? 'find' : 'findOne'](
+        options.type === 'parent'
+          ? {
+              where: {
+                // TODO: Not sure but this change (key was just id before)
+                [PrimaryColumn(options)]: parent[entityIdColumn(options)],
+              },
+            }
+          : {
+              where: {
+                [entityIdColumn(options)]: parent[PrimaryColumn(options)],
+                [entityTypeColumn(options)]: entityType,
+              },
+            },
+      );
+    },
+    findRepository(
+      entityType: Function,
+    ): Repository<PolymorphicChildInterface | never> {
+      const repositoryToken = this.resolveRepositoryToken(entityType);
+
+      const repository: Repository<PolymorphicChildInterface> =
+        repositoryToken !== entityType
+          ? // TODO: Write function to resolve the custom repo for this repo
+            baseRepository.manager.getCustomRepository(repositoryToken)
+          : baseRepository.manager.getRepository(repositoryToken);
+
+      if (!repository) {
+        throw new RepositoryNotFoundException(repositoryToken);
+      }
+
+      return repository;
+    },
+    resolveRepositoryToken(token: Function): Function | never {
+      const tokens = getMetadataArgsStorage().entityRepositories.filter(
+        (value: EntityRepositoryMetadataArgs) => value.entity === token,
+      );
+      return tokens[0] ? tokens[0].target : token;
+    },
+    async save<T extends DeepPartial<Entity>>(
+      entityOrEntities: T | Array<T>,
+      options?: SaveOptions & { reload: false },
+    ): Promise<(T & Entity) | Array<T & Entity> | T | Array<T>> {
+      if (!this.isPolymorph()) {
+        return Array.isArray(entityOrEntities)
+          ? baseRepository.save(entityOrEntities, options)
+          : baseRepository.save(entityOrEntities, options);
+      }
+
+      const metadata = this.getPolymorphicMetadata();
+
+      metadata.map((options: PolymorphicOptionsType) => {
+        if (this.isParent(options)) {
+          (Array.isArray(entityOrEntities)
+            ? entityOrEntities
+            : [entityOrEntities]
+          ).map((entity: Entity | DeepPartial<Entity>) => {
+            const parent = entity[options.propertyKey];
+
+            if (!parent || entity[entityIdColumn(options)] !== undefined) {
+              return entity;
             }
 
-            const entityTypes = Array.isArray(option.classType)
-              ? option.classType
-              : [option.classType];
+            /**
+             * Add parent's id and type to child's id and type field
+             */
+            entity[entityIdColumn(options)] = parent[PrimaryColumn(options)];
+            entity[entityTypeColumn(options)] = parent.constructor.name;
+            return entity;
+          });
+        }
+      });
 
-            // resolve to singular query?
-            resolve(
-              Promise.all(
-                entityTypes.map((type: () => Function | Function[]) => {
-                  const repository = this.findRepository(type);
-
-                  repository.delete({
-                    [entityTypeColumn(option)]: type,
-                    [entityIdColumn(option)]: entity[PrimaryColumn(option)],
-                  });
-                }),
-              ),
-            );
-          }),
-      ),
-    );
-  }
-
-  find(options?: FindManyOptions<E>): Promise<E[]>;
-
-  find(conditions?: FindConditions<E>): Promise<E[]>;
-
-  public async find(
-    optionsOrConditions?: FindConditions<E> | FindManyOptions<E>,
-  ): Promise<E[]> {
-    const results = await super.find(optionsOrConditions);
-
-    if (!this.isPolymorph()) {
-      return results;
-    }
-
-    const metadata = this.getPolymorphicMetadata();
-
-    return Promise.all(
-      results.map((entity) => this.hydratePolymorphs(entity, metadata)),
-    );
-  }
-
-  findOne(
-    id?: string | number | Date | ObjectID,
-    options?: FindOneOptions<E>,
-  ): Promise<E | undefined>;
-
-  findOne(options?: FindOneOptions<E>): Promise<E | undefined>;
-
-  findOne(
-    conditions?: FindConditions<E>,
-    options?: FindOneOptions<E>,
-  ): Promise<E | undefined>;
-
-  public async findOne(
-    idOrOptionsOrConditions?:
-      | string
-      | number
-      | Date
-      | ObjectID
-      | FindConditions<E>
-      | FindOneOptions<E>,
-    optionsOrConditions?: FindConditions<E> | FindOneOptions<E>,
-  ): Promise<E | undefined> {
-    const polymorphicMetadata = this.getPolymorphicMetadata();
-
-    if (Object.keys(polymorphicMetadata).length === 0) {
-      return idOrOptionsOrConditions &&
-        (typeof idOrOptionsOrConditions === 'string' ||
-          typeof idOrOptionsOrConditions === 'number' ||
-          typeof idOrOptionsOrConditions === 'object') &&
-        optionsOrConditions
-        ? super.findOne(
-            idOrOptionsOrConditions as number | string | ObjectID | Date,
-            optionsOrConditions as FindConditions<E> | FindOneOptions<E>,
+      /**
+       * Check deleteBeforeUpdate
+       */
+      Array.isArray(entityOrEntities)
+        ? await Promise.all(
+            (entityOrEntities as Array<T>).map((entity) =>
+              this.deletePolymorphs(entity, metadata),
+            ),
           )
-        : super.findOne(
-            idOrOptionsOrConditions as FindConditions<E> | FindOneOptions<E>,
-          );
-    }
+        : await this.deletePolymorphs(entityOrEntities as T, metadata);
 
-    const entity =
-      idOrOptionsOrConditions &&
-      (typeof idOrOptionsOrConditions === 'string' ||
-        typeof idOrOptionsOrConditions === 'number' ||
-        typeof idOrOptionsOrConditions === 'object') &&
-      optionsOrConditions
-        ? await super.findOne(
-            idOrOptionsOrConditions as number | string | ObjectID | Date,
-            optionsOrConditions as FindConditions<E> | FindOneOptions<E>,
-          )
-        : await super.findOne(
-            idOrOptionsOrConditions as FindConditions<E> | FindOneOptions<E>,
-          );
+      return Array.isArray(entityOrEntities)
+        ? baseRepository.save(entityOrEntities, options)
+        : baseRepository.save(entityOrEntities, options);
+    },
+    async deletePolymorphs(
+      entity: DeepPartial<Entity>,
+      options: PolymorphicMetadataInterface[],
+    ): Promise<void | never> {
+      await Promise.all(
+        options.map(
+          (option: PolymorphicMetadataInterface) =>
+            new Promise((resolve) => {
+              if (!option.deleteBeforeUpdate) {
+                resolve(Promise.resolve());
+              }
 
-    if (!entity) {
+              const entityTypes = Array.isArray(option.classType)
+                ? option.classType
+                : [option.classType];
+
+              // resolve to singular query?
+              resolve(
+                Promise.all(
+                  entityTypes.map((type: () => Function | Function[]) => {
+                    const repository = this.findRepository(type);
+
+                    repository.delete({
+                      [entityTypeColumn(option)]: type,
+                      [entityIdColumn(option)]: entity[PrimaryColumn(option)],
+                    });
+                  }),
+                ),
+              );
+            }),
+        ),
+      );
+    },
+    async find(options?: FindManyOptions<Entity>): Promise<Entity[]> {
+      const results = await baseRepository.find(options);
+
+      if (!this.isPolymorph()) {
+        return results;
+      }
+
+      const metadata = this.getPolymorphicMetadata();
+
+      return Promise.all(
+        results.map((entity) => this.hydratePolymorphs(entity, metadata)),
+      );
+    },
+    async findOne(
+      options?: FindOneOptions<Entity>,
+    ): Promise<Entity | undefined> {
+      const polymorphicMetadata = this.getPolymorphicMetadata();
+
+      if (Object.keys(polymorphicMetadata).length === 0) {
+        return baseRepository.findOne(options);
+      }
+
+      const entity = await baseRepository.findOne(options);
+
+      if (!entity) {
+        return entity;
+      }
+
+      return this.hydratePolymorphs(entity, polymorphicMetadata);
+    },
+    create(
+      plainEntityLikeOrPlainEntityLikes?:
+        | DeepPartial<Entity>
+        | DeepPartial<Entity>[],
+    ): Entity | Entity[] {
+      const metadata = this.getPolymorphicMetadata();
+      const entity = baseRepository.create(
+        plainEntityLikeOrPlainEntityLikes as any,
+      );
+      if (!metadata) {
+        return entity;
+      }
+      metadata.forEach((value: PolymorphicOptionsType) => {
+        entity[value.propertyKey] =
+          plainEntityLikeOrPlainEntityLikes[value.propertyKey];
+      });
       return entity;
-    }
-
-    return this.hydratePolymorphs(entity, polymorphicMetadata);
-  }
-
-  create(): E;
-
-  create(entityLikeArray: DeepPartial<E>[]): E[];
-
-  create(entityLike: DeepPartial<E>): E;
-
-  create(
-    plainEntityLikeOrPlainEntityLikes?: DeepPartial<E> | DeepPartial<E>[],
-  ): E | E[] {
-    const metadata = this.getPolymorphicMetadata();
-    const entity = super.create(plainEntityLikeOrPlainEntityLikes as any);
-    if (!metadata) {
-      return entity;
-    }
-    metadata.forEach((value: PolymorphicOptionsType) => {
-      entity[value.propertyKey] =
-        plainEntityLikeOrPlainEntityLikes[value.propertyKey];
-    });
-
-    return entity;
-  }
-
-  /// TODO implement remove and have an option to delete children/parent
-}
+    },
+    // TODO implement remove and have an option to delete children/parent
+  } as ThisType<Repository<Entity>>;
+};
