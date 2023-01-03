@@ -20,7 +20,7 @@ describe('AbstractPolymorphicRepository', () => {
     connection = await createConnection({
       type: 'mysql',
       host: process.env.TYPEORM_HOST,
-      port: parseInt(process.env.TYPEORM_PORT, 10),
+      port: parseInt(process.env.TYPEORM_PORT as string, 10),
       username: process.env.TYPEORM_USERNAME,
       password: process.env.TYPEORM_PASSWORD,
       entities: ['./*/**/*.entity.ts'],
@@ -120,9 +120,9 @@ describe('AbstractPolymorphicRepository', () => {
         const result = await repository.findOne(advert.id);
 
         expect(result).toBeInstanceOf(AdvertEntity);
-        expect(result.owner).toBeInstanceOf(UserEntity);
-        expect(result.owner.id).toBe(result.entityId);
-        expect(result.entityType).toBe(UserEntity.name);
+        expect(result?.owner).toBeInstanceOf(UserEntity);
+        expect(result?.owner.id).toBe(result?.entityId);
+        expect(result?.entityType).toBe(UserEntity.name);
       });
     });
 
