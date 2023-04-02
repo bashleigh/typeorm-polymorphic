@@ -1,13 +1,13 @@
 import 'reflect-metadata';
 import {
-  Repository,
-  getMetadataArgsStorage,
+  DataSource,
   DeepPartial,
-  SaveOptions,
-  FindConditions,
   FindManyOptions,
   FindOneOptions,
-  ObjectID,
+  getMetadataArgsStorage,
+  ObjectLiteral,
+  Repository,
+  SaveOptions,
 } from 'typeorm';
 import { POLYMORPHIC_KEY_SEPARATOR, POLYMORPHIC_OPTIONS } from './constants';
 import {
@@ -20,6 +20,7 @@ import {
 } from './polymorphic.interface';
 import { EntityRepositoryMetadataArgs } from 'typeorm/metadata-args/EntityRepositoryMetadataArgs';
 import { RepositoryNotFoundException } from './repository.token.exception';
+import { POLYMORPHIC_REPOSITORY } from './constants';
 
 type PolymorphicHydrationType = {
   key: string;
@@ -34,7 +35,22 @@ const entityIdColumn = (options: PolymorphicMetadataInterface): string =>
 const PrimaryColumn = (options: PolymorphicMetadataInterface): string =>
   options.primaryColumn || 'id';
 
-export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
+export abstract class AbstractPolymorphicRepository<
+  E extends ObjectLiteral,
+> extends Repository<E> {
+  public static createRepository(
+    ds: DataSource,
+    repository: new (...args: any[]) => any,
+  ) {
+    const entity = Reflect.getMetadata(POLYMORPHIC_REPOSITORY, repository);
+    const baseRepository = ds.getRepository<any>(entity);
+    return new repository(
+      baseRepository.target,
+      baseRepository.manager,
+      baseRepository.queryRunner,
+    );
+  }
+
   private getPolymorphicMetadata(): Array<PolymorphicMetadataInterface> {
     const keys = Reflect.getMetadataKeys(
       (this.metadata.target as Function)['prototype'],
@@ -113,8 +129,12 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
         vals.type === 'parent' && Array.isArray(vals.values)
           ? vals.values.filter((v) => typeof v !== 'undefined' && v !== null)
           : vals.values;
-      e[vals.key] =
+      const polys =
         vals.type === 'parent' && Array.isArray(values) ? values[0] : values; // TODO should be condition for !hasMany
+      type EntityKey = keyof E;
+      const key = vals.key as EntityKey;
+      e[key] = polys as (typeof e)[typeof key];
+
       return e;
     }, entity);
   }
@@ -166,7 +186,8 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
       options.type === 'parent'
         ? {
             where: {
-              id: parent[entityIdColumn(options)],
+              // TODO: Not sure about this change (key was just id before)
+              [PrimaryColumn(options)]: parent[entityIdColumn(options)],
             },
           }
         : {
@@ -248,8 +269,11 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
           /**
            * Add parent's id and type to child's id and type field
            */
-          entity[entityIdColumn(options)] = parent[PrimaryColumn(options)];
-          entity[entityTypeColumn(options)] = parent.constructor.name;
+          type EntityKey = keyof DeepPartial<E>;
+          entity[entityIdColumn(options) as EntityKey] =
+            parent[PrimaryColumn(options)];
+          entity[entityTypeColumn(options) as EntityKey] =
+            parent.constructor.name;
           return entity;
         });
       }
@@ -305,14 +329,8 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     );
   }
 
-  find(options?: FindManyOptions<E>): Promise<E[]>;
-
-  find(conditions?: FindConditions<E>): Promise<E[]>;
-
-  public async find(
-    optionsOrConditions?: FindConditions<E> | FindManyOptions<E>,
-  ): Promise<E[]> {
-    const results = await super.find(optionsOrConditions);
+  public async find(options?: FindManyOptions<E>): Promise<E[]> {
+    const results = await super.find(options);
 
     if (!this.isPolymorph()) {
       return results;
@@ -325,58 +343,14 @@ export abstract class AbstractPolymorphicRepository<E> extends Repository<E> {
     );
   }
 
-  findOne(
-    id?: string | number | Date | ObjectID,
-    options?: FindOneOptions<E>,
-  ): Promise<E | undefined>;
-
-  findOne(options?: FindOneOptions<E>): Promise<E | undefined>;
-
-  findOne(
-    conditions?: FindConditions<E>,
-    options?: FindOneOptions<E>,
-  ): Promise<E | undefined>;
-
-  public async findOne(
-    idOrOptionsOrConditions?:
-      | string
-      | number
-      | Date
-      | ObjectID
-      | FindConditions<E>
-      | FindOneOptions<E>,
-    optionsOrConditions?: FindConditions<E> | FindOneOptions<E>,
-  ): Promise<E | undefined> {
+  public async findOne(options?: FindOneOptions<E>): Promise<E | null> {
     const polymorphicMetadata = this.getPolymorphicMetadata();
 
     if (Object.keys(polymorphicMetadata).length === 0) {
-      return idOrOptionsOrConditions &&
-        (typeof idOrOptionsOrConditions === 'string' ||
-          typeof idOrOptionsOrConditions === 'number' ||
-          typeof idOrOptionsOrConditions === 'object') &&
-        optionsOrConditions
-        ? super.findOne(
-            idOrOptionsOrConditions as number | string | ObjectID | Date,
-            optionsOrConditions as FindConditions<E> | FindOneOptions<E>,
-          )
-        : super.findOne(
-            idOrOptionsOrConditions as FindConditions<E> | FindOneOptions<E>,
-          );
+      return super.findOne(options);
     }
 
-    const entity =
-      idOrOptionsOrConditions &&
-      (typeof idOrOptionsOrConditions === 'string' ||
-        typeof idOrOptionsOrConditions === 'number' ||
-        typeof idOrOptionsOrConditions === 'object') &&
-      optionsOrConditions
-        ? await super.findOne(
-            idOrOptionsOrConditions as number | string | ObjectID | Date,
-            optionsOrConditions as FindConditions<E> | FindOneOptions<E>,
-          )
-        : await super.findOne(
-            idOrOptionsOrConditions as FindConditions<E> | FindOneOptions<E>,
-          );
+    const entity = await super.findOne(options);
 
     if (!entity) {
       return entity;
