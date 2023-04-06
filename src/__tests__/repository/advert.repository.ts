@@ -1,6 +1,6 @@
-import { EntityRepository } from 'typeorm';
+import { PolymorphicRepository } from '../../decorators';
 import { AbstractPolymorphicRepository } from '../../polymorphic.repository';
 import { AdvertEntity } from '../entities/advert.entity';
 
-@EntityRepository(AdvertEntity)
+@PolymorphicRepository(AdvertEntity)
 export class AdvertRepository extends AbstractPolymorphicRepository<AdvertEntity> {}
