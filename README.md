@@ -107,9 +107,9 @@ id | entityId | entityType
 
 ## Decorators
 
-Both `PolymorphicChildren` and `PolymophicParent` are treated same. Currently some of the default values are different but eventually these method should be synonyms of one another. They have different names because it helped me describe the relationship directions which could be explained as 'parent' 'child' in different ways.
+Both `PolymorphicChildren` and `PolymorphicParent` are treated same. Currently some of the default values are different but eventually these method should be synonyms of one another. They have different names because it helped me describe the relationship directions which could be explained as 'parent' 'child' in different ways.
 
-`PolymophicRepository` allows you to define a custom typeorm repository and then
+`PolymorphicRepository` allows you to define a custom typeorm repository and then
 instantiate it later via `AbstractPolymorphicRepository.createRepository(...)`.
 
 ### Ambiguous direction
