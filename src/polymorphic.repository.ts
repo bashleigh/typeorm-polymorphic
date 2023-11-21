@@ -5,6 +5,7 @@ import {
   FindManyOptions,
   FindOneOptions,
   getMetadataArgsStorage,
+  In,
   ObjectLiteral,
   Repository,
   SaveOptions,
@@ -25,7 +26,11 @@ import { POLYMORPHIC_REPOSITORY } from './constants';
 type PolymorphicHydrationType = {
   key: string;
   type: 'children' | 'parent';
-  values: PolymorphicChildInterface[] | PolymorphicChildInterface;
+  hasMany: boolean;
+  valueKeyMap: Record<
+    string,
+    (PolymorphicChildInterface | PolymorphicChildInterface[])[]
+  >;
 };
 
 const entityTypeColumn = (options: PolymorphicMetadataInterface): string =>
@@ -105,47 +110,56 @@ export abstract class AbstractPolymorphicRepository<
   }
 
   public async hydrateMany(entities: E[]): Promise<E[]> {
-    return Promise.all(entities.map((ent) => this.hydrateOne(ent)));
+    const metadata = this.getPolymorphicMetadata();
+    return this.hydratePolymorphs(entities, metadata);
   }
 
   public async hydrateOne(entity: E): Promise<E> {
-    const metadata = this.getPolymorphicMetadata();
-
-    return this.hydratePolymorphs(entity, metadata);
+    const result = await this.hydrateMany([entity]);
+    return result[0];
   }
 
   private async hydratePolymorphs(
-    entity: E,
+    entities: E[],
     options: PolymorphicMetadataInterface[],
-  ): Promise<E> {
+  ): Promise<E[]> {
     const values = await Promise.all(
       options.map((option: PolymorphicMetadataInterface) =>
-        this.hydrateEntities(entity, option),
+        this.hydrateEntities(entities, option),
       ),
     );
 
-    return values.reduce<E>((e: E, vals: PolymorphicHydrationType) => {
-      const values =
-        vals.type === 'parent' && Array.isArray(vals.values)
-          ? vals.values.filter((v) => typeof v !== 'undefined' && v !== null)
-          : vals.values;
-      const polys =
-        vals.type === 'parent' && Array.isArray(values) ? values[0] : values; // TODO should be condition for !hasMany
-      type EntityKey = keyof E;
-      const key = vals.key as EntityKey;
-      e[key] = polys as (typeof e)[typeof key];
+    const results: E[] = [];
+    for (let entity of entities) {
+      const result = values.reduce<E>(
+        (e: E, vals: PolymorphicHydrationType) => {
+          const polyKey = `${e.entityType}:${e.entityId}`;
+          const polys = vals.hasMany
+            ? vals.valueKeyMap[polyKey]
+            : vals.valueKeyMap[polyKey][0];
 
-      return e;
-    }, entity);
+          type EntityKey = keyof E;
+          const key = vals.key as EntityKey;
+          e[key] = polys as (typeof e)[typeof key];
+          return e;
+        },
+        entity,
+      );
+
+      results.push(result);
+    }
+
+    return results;
   }
 
   private async hydrateEntities(
-    entity: E,
+    entities: E[],
     options: PolymorphicMetadataInterface,
   ): Promise<PolymorphicHydrationType> {
+    const typeColumn = entityTypeColumn(options);
     const entityTypes: (Function | string)[] =
       options.type === 'parent'
-        ? [entity[entityTypeColumn(options)]]
+        ? [...new Set(entities.map((e) => e[typeColumn]))]
         : Array.isArray(options.classType)
         ? options.classType
         : [options.classType];
@@ -153,46 +167,85 @@ export abstract class AbstractPolymorphicRepository<
     // TODO if not hasMany, should I return if one is found?
     const results = await Promise.all(
       entityTypes.map((type: Function) =>
-        this.findPolymorphs(entity, type, options),
+        this.findPolymorphs(entities, type, options),
       ),
     );
 
+    const idColumn = entityIdColumn(options);
+    const isParent = this.isParent(options);
+    const primaryColumn = PrimaryColumn(options);
+
+    const entitiesResultMap = results
+      // flatten all the results
+      .reduce<PolymorphicChildInterface[]>((acc, val) => {
+        if (Array.isArray(val)) {
+          acc.push(...val);
+        } else {
+          acc.push(val);
+        }
+        return acc;
+      }, [])
+      // map the results to a keyed map by entityType & entityId
+      .reduce<
+        Record<
+          string,
+          (PolymorphicChildInterface | PolymorphicChildInterface[])[]
+        >
+      >((acc, val) => {
+        let key: string;
+        if (isParent) {
+          const [pColumnVal, entityType] = Array.isArray(val)
+            ? [val[0][primaryColumn], val[0].constructor.name]
+            : [val[primaryColumn], val.constructor.name];
+
+          key = `${entityType}:${pColumnVal}`;
+        } else {
+          const [idColumnVal, typeColumnVal] = Array.isArray(val)
+            ? [val[0][idColumn], val[0][typeColumn]]
+            : [val[idColumn], val[typeColumn]];
+
+          key = `${typeColumnVal}:${idColumnVal}`;
+        }
+
+        acc[key] = acc[key] || [];
+        acc[key].push(val);
+        return acc;
+      }, {});
     return {
       key: options.propertyKey,
       type: options.type,
-      values: (options.hasMany &&
-      Array.isArray(results) &&
-      results.length > 0 &&
-      Array.isArray(results[0])
-        ? results.reduce<PolymorphicChildInterface[]>(
-            (
-              resultEntities: PolymorphicChildInterface[],
-              entities: PolymorphicChildInterface[],
-            ) => entities.concat(...resultEntities),
-            results as PolymorphicChildInterface[],
-          )
-        : results) as PolymorphicChildInterface | PolymorphicChildInterface[],
+      hasMany: options.hasMany,
+      valueKeyMap: entitiesResultMap,
     };
   }
 
   private async findPolymorphs(
-    parent: E,
+    entities: E[],
     entityType: Function,
     options: PolymorphicMetadataInterface,
   ): Promise<PolymorphicChildInterface[] | PolymorphicChildInterface | never> {
     const repository = this.findRepository(entityType);
+    const idColumn = entityIdColumn(options);
+    const primaryColumn = PrimaryColumn(options);
 
-    return repository[options.hasMany ? 'find' : 'findOne'](
+    // filter out any entities that don't match the given entityType
+    const filteredEntities = entities.filter((e) => {
+      return repository.target.toString() === e.entityType;
+    });
+
+    const method =
+      options.hasMany || filteredEntities.length > 1 ? 'find' : 'findOne';
+    return repository[method](
       options.type === 'parent'
         ? {
             where: {
               // TODO: Not sure about this change (key was just id before)
-              [PrimaryColumn(options)]: parent[entityIdColumn(options)],
+              [primaryColumn]: In(filteredEntities.map((p) => p[idColumn])),
             },
           }
         : {
             where: {
-              [entityIdColumn(options)]: parent[PrimaryColumn(options)],
+              [idColumn]: In(filteredEntities.map((p) => p[primaryColumn])),
               [entityTypeColumn(options)]: entityType,
             },
           },
@@ -338,9 +391,7 @@ export abstract class AbstractPolymorphicRepository<
 
     const metadata = this.getPolymorphicMetadata();
 
-    return Promise.all(
-      results.map((entity) => this.hydratePolymorphs(entity, metadata)),
-    );
+    return this.hydratePolymorphs(results, metadata);
   }
 
   public async findOne(options?: FindOneOptions<E>): Promise<E | null> {
@@ -356,7 +407,8 @@ export abstract class AbstractPolymorphicRepository<
       return entity;
     }
 
-    return this.hydratePolymorphs(entity, polymorphicMetadata);
+    const results = await this.hydratePolymorphs([entity], polymorphicMetadata);
+    return results[0];
   }
 
   create(): E;
