@@ -38,9 +38,9 @@ const PrimaryColumn = (options: PolymorphicMetadataInterface): string =>
 export abstract class AbstractPolymorphicRepository<
   E extends ObjectLiteral,
 > extends Repository<E> {
-  public static createRepository(
+  public static createRepository<E extends ObjectLiteral, R extends AbstractPolymorphicRepository<E>>(
     ds: DataSource,
-    repository: new (...args: any[]) => any,
+    repository: new (...args: any[]) => R,
   ) {
     const entity = Reflect.getMetadata(POLYMORPHIC_REPOSITORY, repository);
     const baseRepository = ds.getRepository<any>(entity);
