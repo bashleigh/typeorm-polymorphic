@@ -127,7 +127,7 @@ export abstract class AbstractPolymorphicRepository<
     return values.reduce<E>((e: E, vals: PolymorphicHydrationType) => {
       const values =
         vals.type === 'parent' && Array.isArray(vals.values)
-          ? vals.values.filter((v) => typeof v !== 'undefined' && v !== null)
+          ? vals.values.filter((v) => typeof v !== 'undefined')
           : vals.values;
       const polys =
         vals.type === 'parent' && Array.isArray(values) ? values[0] : values; // TODO should be condition for !hasMany
@@ -153,7 +153,7 @@ export abstract class AbstractPolymorphicRepository<
     // TODO if not hasMany, should I return if one is found?
     const results = await Promise.all(
       entityTypes.map((type: Function) =>
-        this.findPolymorphs(entity, type, options),
+        type ? this.findPolymorphs(entity, type, options) : null,
       ),
     );
 
