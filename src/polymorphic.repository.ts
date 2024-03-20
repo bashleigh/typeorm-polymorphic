@@ -262,7 +262,7 @@ export abstract class AbstractPolymorphicRepository<
         ).map((entity: E | DeepPartial<E>) => {
           const parent = entity[options.propertyKey];
 
-          if (!parent || entity[entityIdColumn(options)] !== undefined) {
+          if (!parent) {
             return entity;
           }
 
