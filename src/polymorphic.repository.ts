@@ -169,7 +169,7 @@ export abstract class AbstractPolymorphicRepository<
               resultEntities: PolymorphicChildInterface[],
               entities: PolymorphicChildInterface[],
             ) => entities.concat(...resultEntities),
-            results as PolymorphicChildInterface[],
+            [] as PolymorphicChildInterface[],
           )
         : results) as PolymorphicChildInterface | PolymorphicChildInterface[],
     };
@@ -193,7 +193,7 @@ export abstract class AbstractPolymorphicRepository<
         : {
             where: {
               [entityIdColumn(options)]: parent[PrimaryColumn(options)],
-              [entityTypeColumn(options)]: entityType,
+              [entityTypeColumn(options)]: parent.constructor.name,
             },
           },
     );

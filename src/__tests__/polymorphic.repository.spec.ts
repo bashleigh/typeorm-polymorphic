@@ -6,6 +6,7 @@ import { resolve } from 'path';
 import { AdvertRepository } from './repository/advert.repository';
 import { AbstractPolymorphicRepository } from '../';
 import { MerchantEntity } from './entities/merchant.entity';
+import { UserRepository } from './repository/user.repository';
 
 describe('AbstractPolymorphicRepository', () => {
   let connection: DataSource;
@@ -227,6 +228,42 @@ describe('AbstractPolymorphicRepository', () => {
           expect(res.entityId).toBeNull();
           expect(res.entityType).toBeNull();
         });
+      });
+    });
+  });
+
+  describe('Parent', () => {
+    describe('findOne', () => {
+      it('Can find parent entity with children', async () => {
+        const repository = AbstractPolymorphicRepository.createRepository(
+          connection,
+          UserRepository,
+        );
+        const advertRepository = AbstractPolymorphicRepository.createRepository(
+          connection,
+          AdvertRepository,
+        );
+
+        const user = await repository.save(new UserEntity());
+
+        const advert = await advertRepository.save(
+          advertRepository.create({
+            owner: user,
+          }),
+        );
+
+        let result = await repository.findOne({
+          where: { id: user.id },
+        });
+
+        result = await repository.hydrateOne(result);
+
+        expect(result).toBeInstanceOf(UserEntity);
+        expect(result?.adverts).toHaveLength(1);
+        expect(result?.adverts[0]).toBeInstanceOf(AdvertEntity);
+        expect(result?.adverts[0].id).toBe(advert.id);
+        expect(result?.adverts[0].entityType).toBe(UserEntity.name);
+        expect(result?.adverts[0].entityId).toBe(user.id);
       });
     });
   });
