@@ -10,9 +10,6 @@ import { MerchantEntity } from './entities/merchant.entity';
 describe('AbstractPolymorphicRepository', () => {
   let connection: DataSource;
 
-  let userRepository: Repository<UserEntity>;
-  let repository: AbstractPolymorphicRepository<AdvertEntity>;
-
   beforeAll(async () => {
     config({
       path: resolve(__dirname, '.', '..', '..', '.env'),
@@ -33,14 +30,14 @@ describe('AbstractPolymorphicRepository', () => {
 
   afterAll(async () => {
     await connection.destroy();
+  });
+
+  afterEach(async () => {
+    const userRepository = connection.getRepository(UserEntity);
+    const repository = connection.getRepository(AdvertEntity);
 
     await userRepository.createQueryBuilder().delete().execute();
     await repository.createQueryBuilder().delete().execute();
-
-    await Promise.all([
-      userRepository.createQueryBuilder().delete().execute(),
-      repository.createQueryBuilder().delete().execute(),
-    ]);
   });
 
   describe('Childen', () => {
@@ -138,6 +135,22 @@ describe('AbstractPolymorphicRepository', () => {
         expect(result?.owner.id).toBe(result?.entityId);
         expect(result?.entityType).toBe(UserEntity.name);
       });
+
+      it('Can find entity without parent', async () => {
+        const repository = AbstractPolymorphicRepository.createRepository(
+          connection,
+          AdvertRepository,
+        );
+
+        const advert = await repository.save(repository.create({}));
+
+        const result = await repository.findOne({ where: { id: advert.id } });
+
+        expect(result).toBeInstanceOf(AdvertEntity);
+        expect(result?.owner).toBeNull();
+        expect(result?.entityId).toBeNull();
+        expect(result?.entityType).toBeNull();
+      });
     });
 
     describe('find', () => {
@@ -168,6 +181,24 @@ describe('AbstractPolymorphicRepository', () => {
           expect(res.owner.id).toBeTruthy();
           expect(res.entityType).toBe(UserEntity.name);
           expect(res.entityId).toBe(res.owner.id);
+        });
+      });
+
+      it('Can find entities without parent', async () => {
+        const repository = AbstractPolymorphicRepository.createRepository(
+          connection,
+          AdvertRepository,
+        );
+
+        await repository.save([repository.create({}), repository.create({})]);
+
+        const result = await repository.find();
+
+        result.forEach((res) => {
+          expect(res).toBeInstanceOf(AdvertEntity);
+          expect(res.owner).toBeNull();
+          expect(res.entityId).toBeNull();
+          expect(res.entityType).toBeNull();
         });
       });
     });

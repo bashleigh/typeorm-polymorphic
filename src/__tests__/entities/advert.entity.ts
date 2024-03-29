@@ -13,9 +13,9 @@ export class AdvertEntity {
   })
   owner: UserEntity | MerchantEntity;
 
-  @Column()
+  @Column({ nullable: true })
   entityId: number;
 
-  @Column()
+  @Column({ nullable: true })
   entityType: string;
 }
