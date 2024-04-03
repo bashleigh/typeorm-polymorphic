@@ -179,6 +179,31 @@ describe('AbstractPolymorphicRepository', () => {
         expect(result?.entityId).toBeNull();
         expect(result?.entityType).toBeNull();
       });
+
+      it('Can find entity with customized entity and id columns', async () => {
+        const repository = AbstractPolymorphicRepository.createRepository(
+          connection,
+          AdvertRepository,
+        );
+        const userRepository = connection.getRepository(UserEntity);
+
+        const user = await userRepository.save(new UserEntity());
+
+        const advert = await repository.save(
+          repository.create({
+            creator: user,
+          }),
+        );
+
+        const result = await repository.findOne({ where: { id: advert.id } });
+
+        expect(result).toBeInstanceOf(AdvertEntity);
+
+        expect(result?.creator).toBeInstanceOf(UserEntity);
+        expect(result?.creator.id).toBe(result?.creatorId);
+        expect(result?.creatorType).toBe(UserEntity.name);
+        expect(result?.creatorId).toBe(result?.creator.id);
+      });
     });
 
     describe('find', () => {
@@ -264,6 +289,38 @@ describe('AbstractPolymorphicRepository', () => {
         expect(result?.adverts[0].id).toBe(advert.id);
         expect(result?.adverts[0].entityType).toBe(UserEntity.name);
         expect(result?.adverts[0].entityId).toBe(user.id);
+      });
+
+      it('Can find parent entity with children with customized entity and id columns', async () => {
+        const repository = AbstractPolymorphicRepository.createRepository(
+          connection,
+          UserRepository,
+        );
+        const advertRepository = AbstractPolymorphicRepository.createRepository(
+          connection,
+          AdvertRepository,
+        );
+
+        const user = await repository.save(new UserEntity());
+
+        const advert = await advertRepository.save(
+          advertRepository.create({
+            creator: user,
+          }),
+        );
+
+        let result = await repository.findOne({
+          where: { id: user.id },
+        });
+
+        result = await repository.hydrateOne(result);
+
+        expect(result).toBeInstanceOf(UserEntity);
+        expect(result?.createdAdverts).toHaveLength(1);
+        expect(result?.createdAdverts[0]).toBeInstanceOf(AdvertEntity);
+        expect(result?.createdAdverts[0].id).toBe(advert.id);
+        expect(result?.createdAdverts[0].creatorType).toBe(UserEntity.name);
+        expect(result?.createdAdverts[0].creatorId).toBe(user.id);
       });
     });
   });

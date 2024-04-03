@@ -11,4 +11,11 @@ export class MerchantEntity {
     eager: false,
   })
   adverts: AdvertEntity[];
+
+  @PolymorphicChildren(() => AdvertEntity, {
+    entityTypeColumn: 'creatorType',
+    entityIdColumn: 'creatorId',
+    eager: false,
+  })
+  createdAdverts: AdvertEntity[];
 }
