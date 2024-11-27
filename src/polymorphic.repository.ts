@@ -181,13 +181,25 @@ export abstract class AbstractPolymorphicRepository<
     options: PolymorphicMetadataInterface,
   ): Promise<PolymorphicChildInterface[] | PolymorphicChildInterface | never> {
     const repository = this.findRepository(entityType);
+    // If we are in the child repository, `options` has the child metadata
+    // but not the parent's while options.type == 'parent'. But to 
+    // perform the query below we need the ID of the parent entity. Meaning
+    // we need to read the `primaryColum` option from the parent repository.
+
+    // Act as if the parent repository is the current repository
+    // and extract the metadata from it
+    // FIXME: Come up with a nicer interface to do this
+    const metadata: PolymorphicMetadataInterface[] = this.getPolymorphicMetadata.bind(repository)();
+
+    // Find the metadata associated to the current repository through `target`
+    const found = metadata.find((m) => m.classType === this.target);
 
     return repository[options.hasMany ? 'find' : 'findOne'](
       options.type === 'parent'
         ? {
             where: {
               // TODO: Not sure about this change (key was just id before)
-              [PrimaryColumn(options)]: parent[entityIdColumn(options)],
+              [PrimaryColumn({ primaryColumn: found.primaryColumn, ...options })]: parent[entityIdColumn(options)],
             },
           }
         : {
@@ -266,14 +278,15 @@ export abstract class AbstractPolymorphicRepository<
             return entity;
           }
 
-          /**
-           * Add parent's id and type to child's id and type field
-           */
+          // FIXME: Come up with a nicer interface to do this
+          const repository = this.findRepository(parent.constructor as Function);
+          const parentMetadata: PolymorphicMetadataInterface[] = this.getPolymorphicMetadata.bind(repository)();
+          const found = parentMetadata.find((m) => m.classType === this.target);
           type EntityKey = keyof DeepPartial<E>;
           entity[entityIdColumn(options) as EntityKey] =
-            parent[PrimaryColumn(options)];
+              parent[PrimaryColumn({ primaryColumn: found.primaryColumn, ...options })];
           entity[entityTypeColumn(options) as EntityKey] =
-            parent.constructor.name;
+              parent.constructor.name;
           return entity;
         });
       }

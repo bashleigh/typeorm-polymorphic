@@ -1,11 +1,12 @@
-import { DataSource, Repository } from 'typeorm';
-import { AdvertEntity } from './entities/advert.entity';
-import { UserEntity } from './entities/user.entity';
 import { config } from 'dotenv';
 import { resolve } from 'path';
-import { AdvertRepository } from './repository/advert.repository';
+import { DataSource } from 'typeorm';
 import { AbstractPolymorphicRepository } from '../';
+import { AdminEntity } from './entities/admin.entity';
+import { AdvertEntity } from './entities/advert.entity';
 import { MerchantEntity } from './entities/merchant.entity';
+import { UserEntity } from './entities/user.entity';
+import { AdvertRepository } from './repository/advert.repository';
 import { UserRepository } from './repository/user.repository';
 
 describe('AbstractPolymorphicRepository', () => {
@@ -22,7 +23,7 @@ describe('AbstractPolymorphicRepository', () => {
       port: parseInt(process.env.TYPEORM_PORT as string, 10),
       username: process.env.TYPEORM_USERNAME,
       password: process.env.TYPEORM_PASSWORD,
-      entities: [UserEntity, AdvertEntity, MerchantEntity],
+      entities: [UserEntity, AdvertEntity, MerchantEntity, AdminEntity],
       synchronize: process.env.TYPEORM_SYNCHRONIZE === 'true',
       database: process.env.TYPEORM_DATABASE,
     });
@@ -162,6 +163,31 @@ describe('AbstractPolymorphicRepository', () => {
         expect(result?.owner).toBeInstanceOf(UserEntity);
         expect(result?.owner.id).toBe(result?.entityId);
         expect(result?.entityType).toBe(UserEntity.name);
+      });
+
+      it('Can find entity with parent even with different primaryColumn', async () => {
+        const repository: AbstractPolymorphicRepository<AdvertEntity> =
+          AbstractPolymorphicRepository.createRepository(
+            connection,
+            AdvertRepository,
+          );
+        const adminRepository = connection.getRepository(AdminEntity);
+
+        const admin = await adminRepository.save(new AdminEntity());
+
+        const advert = await repository.save(
+          repository.create({
+            owner: admin,
+          }),
+        );
+
+        const result = await repository.findOne({ where: { id: advert.id } });
+
+        expect(result).toBeInstanceOf(AdvertEntity);
+        expect(result?.owner).toBeInstanceOf(AdminEntity);
+        const owner = result?.owner as AdminEntity;
+        expect(owner.admin_id).toBe(result?.entityId);
+        expect(result?.entityType).toBe(AdminEntity.name);
       });
 
       it('Can find entity without parent', async () => {
