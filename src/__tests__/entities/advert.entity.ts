@@ -18,4 +18,17 @@ export class AdvertEntity {
 
   @Column({ nullable: true })
   entityType: string;
+
+  @PolymorphicParent(() => [UserEntity, MerchantEntity], {
+    entityTypeColumn: 'creatorType',
+    entityIdColumn: 'creatorId',
+    eager: true,
+  })
+  creator: UserEntity | MerchantEntity;
+
+  @Column({ nullable: true })
+  creatorId: number;
+
+  @Column({ nullable: true })
+  creatorType: string;
 }

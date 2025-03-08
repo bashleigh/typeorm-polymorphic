@@ -8,7 +8,7 @@ export interface PolymorphicInterface {
   hasMany: boolean;
   primaryColumn?: string;
   entityTypeColumn?: string;
-  entityTypeId?: string;
+  entityIdColumn?: string;
   eager: boolean;
   cascade: boolean;
   deleteBeforeUpdate: boolean;
@@ -31,7 +31,7 @@ export interface PolymorphicDecoratorOptionsInterface {
   cascade?: boolean;
   eager?: boolean;
   entityTypeColumn?: string;
-  entityTypeId?: string;
+  entityIdColumn?: string;
 }
 
 export type PolymorphicChildType = {

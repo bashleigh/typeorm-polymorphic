@@ -31,7 +31,7 @@ type PolymorphicHydrationType = {
 const entityTypeColumn = (options: PolymorphicMetadataInterface): string =>
   options.entityTypeColumn || 'entityType';
 const entityIdColumn = (options: PolymorphicMetadataInterface): string =>
-  options.entityTypeId || 'entityId';
+  options.entityIdColumn || 'entityId';
 const PrimaryColumn = (options: PolymorphicMetadataInterface): string =>
   options.primaryColumn || 'id';
 
